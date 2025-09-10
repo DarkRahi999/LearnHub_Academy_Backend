@@ -1,7 +1,7 @@
 import { Entity, PrimaryKey, Property, Unique, OptionalProps, Enum } from '@mikro-orm/core';
 import { Gender } from '../../utils/enums';
 
-@Entity()
+@Entity({ tableName: 'users' })
 export class User {
   [OptionalProps]?: 'createdAt' | 'updatedAt';
   @PrimaryKey()
@@ -10,10 +10,10 @@ export class User {
   @Property({ length: 64, unique: true })
   @Unique()
   email!: string;
-
-  @Property({ length: 64, unique: true })
+  
+  @Property({ length: 16, unique: true })
   @Unique()
-  userName!: string;
+  phone!: string;
 
   @Property({ length: 32 })
   firstName!: string;

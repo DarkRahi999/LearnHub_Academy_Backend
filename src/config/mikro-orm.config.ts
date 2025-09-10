@@ -1,5 +1,6 @@
 import { defineConfig, PostgreSqlDriver } from '@mikro-orm/postgresql';
-import { User } from 'src/auth/entity/user.entity';
+import { User } from '../auth/entity/user.entity';
+import { OtpCode } from '../auth/entity/otp.entity';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -7,7 +8,7 @@ dotenv.config();
 export default defineConfig({
   driver: PostgreSqlDriver,
   clientUrl: process.env.DATABASE_URL,
-  entities: [User],
+  entities: [User, OtpCode],
   debug: true,
   allowGlobalContext: true,
   driverOptions: {

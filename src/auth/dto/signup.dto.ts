@@ -11,12 +11,12 @@ export class SignupDto {
   email!: string;
 
   @ApiProperty({
-    description: 'Unique username',
-    example: 'rahim01',
+    description: 'Unique phone number',
+    example: '+8801712345678',
   })
   @IsString()
   @IsNotEmpty()
-  userName!: string;
+  phone!: string;
 
   @ApiProperty({
     description: 'First name',
@@ -87,11 +87,12 @@ export class SignupDto {
   @MinLength(6)
   password!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Avatar image URL',
     example: 'https://example.com/avatar.jpg',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  avatarUrl!: string;
+  @IsOptional()
+  avatarUrl?: string;
 }

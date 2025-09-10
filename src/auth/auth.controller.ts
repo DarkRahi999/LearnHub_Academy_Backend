@@ -5,6 +5,8 @@ import { JwtAuthGuard } from './jwt.guard';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -23,6 +25,7 @@ export class AuthController {
     return this.authService.login(body);
   }
 
+
   @Get('profile')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -35,5 +38,17 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async updateAvatar(@Req() req: any, @Body() body: UpdateAvatarDto) {
     return this.authService.updateAvatar(req.user.userId, body.avatarUrl);
+  }
+
+  @Post('forgot-password')
+  @ApiBody({ type: ForgotPasswordDto })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.forgotPassword(body);
+  }
+
+  @Post('reset-password')
+  @ApiBody({ type: ResetPasswordDto })
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body);
   }
 }

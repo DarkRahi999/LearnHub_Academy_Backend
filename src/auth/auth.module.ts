@@ -8,11 +8,12 @@ import { JwtStrategy } from '../config/jwt.strategy';
 import { JwtAuthGuard } from './jwt.guard';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { User } from './entity/user.entity';
+import { OtpCode } from './entity/otp.entity';
 
 @Module({
   imports: [
     ConfigModule,
-    MikroOrmModule.forFeature([User]),
+    MikroOrmModule.forFeature([User, OtpCode]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
