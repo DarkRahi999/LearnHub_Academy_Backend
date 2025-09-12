@@ -4,9 +4,9 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -30,14 +30,17 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   profile(@Req() req: any) {
-    return { user: req.user };
+    return this.authService.getProfile(req.user.userId);
   }
 
-  @Patch('profile/avatar')
+  // Removed separate avatar endpoint; use PATCH /auth/profile instead
+
+  @Patch('profile')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  async updateAvatar(@Req() req: any, @Body() body: UpdateAvatarDto) {
-    return this.authService.updateAvatar(req.user.userId, body.avatarUrl);
+  @ApiBody({ type: UpdateProfileDto })
+  async updateProfile(@Req() req: any, @Body() body: UpdateProfileDto) {
+    return this.authService.updateProfile(req.user.userId, body);
   }
 
   @Post('forgot-password')

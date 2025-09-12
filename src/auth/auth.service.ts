@@ -46,7 +46,7 @@ export class AuthService {
       nationality: data.nationality,
       religion: data.religion,
       acceptTerms: data.acceptTerms,
-      avatarUrl: data.avatarUrl || 'https://via.placeholder.com/150',
+      avatarUrl: data.avatarUrl || '/default-user.svg',
       passwordHash,
     });
     await this.userRepo.getEntityManager().persistAndFlush(user);
@@ -102,12 +102,45 @@ export class AuthService {
     return rest;
   }
 
-  async updateAvatar(userId: string, avatarUrl: string) {
+  async getProfile(userId: string) {
     const user = await this.userRepo.findOne({ id: Number(userId) });
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    user.avatarUrl = avatarUrl;
+    return { user: this.sanitize(user) };
+  }
+
+  // Removed: updateAvatar (use updateProfile instead)
+
+  async updateProfile(
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      gender?: Gender;
+      dob?: string;
+      nationality?: string;
+      religion?: string;
+      avatarUrl?: string;
+    },
+  ) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (typeof data.firstName !== 'undefined') user.firstName = data.firstName;
+    if (typeof data.lastName !== 'undefined') user.lastName = data.lastName;
+    if (typeof data.email !== 'undefined') user.email = data.email;
+    if (typeof data.phone !== 'undefined') user.phone = data.phone as any;
+    if (typeof data.gender !== 'undefined') user.gender = data.gender as any;
+    if (typeof data.dob !== 'undefined') user.dob = data.dob ? new Date(data.dob) : undefined;
+    if (typeof data.nationality !== 'undefined') user.nationality = data.nationality as any;
+    if (typeof data.religion !== 'undefined') user.religion = data.religion as any;
+    if (typeof data.avatarUrl !== 'undefined') user.avatarUrl = data.avatarUrl as any;
+
     await this.userRepo.getEntityManager().persistAndFlush(user);
     return { user: this.sanitize(user) };
   }
