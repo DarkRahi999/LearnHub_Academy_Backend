@@ -1,5 +1,5 @@
 import { Entity, PrimaryKey, Property, Unique, OptionalProps, Enum } from '@mikro-orm/core';
-import { Gender } from '../../utils/enums';
+import { Gender, UserRole } from '../../utils/enums';
 
 @Entity({ tableName: 'users' })
 export class User {
@@ -23,6 +23,9 @@ export class User {
 
   @Enum({ items: () => Gender })
   gender!: Gender;
+
+  @Enum({ items: () => UserRole, default: UserRole.USER })
+  role!: UserRole;
 
   @Property({ type: Date, nullable: true })
   dob?: Date;

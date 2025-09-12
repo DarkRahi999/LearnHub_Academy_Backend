@@ -1,0 +1,2 @@
+npx mikro-orm migration:create --config src/config/mikro-orm.config.ts
+npx mikro-orm migration:up --config src/config/mikro-orm.config.ts

@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { RolePermissionsService } from './role-permissions.service';
 import { JwtStrategy } from '../config/jwt.strategy';
 import { JwtAuthGuard } from './jwt.guard';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
@@ -25,7 +26,7 @@ import { OtpCode } from './entity/otp.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
-  exports: [JwtModule, PassportModule, AuthService, JwtAuthGuard],
+  providers: [AuthService, RolePermissionsService, JwtStrategy, JwtAuthGuard],
+  exports: [JwtModule, PassportModule, AuthService, RolePermissionsService, JwtAuthGuard],
 })
 export class AuthModule { }

@@ -9,8 +9,10 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { OtpCode } from './entity/otp.entity';
 import * as nodemailer from 'nodemailer';
-import { Gender } from '../utils/enums';
+import { Gender, UserRole, Permission } from '../utils/enums';
 import * as bcrypt from 'bcryptjs';
+import { RolePermissionsService } from './role-permissions.service';
+import { CreateSuperAdminDto } from './dto/create-super-admin.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(User) private readonly userRepo: EntityRepository<User>,
     @InjectRepository(OtpCode) private readonly otpRepo: EntityRepository<OtpCode>,
+    private readonly rolePermissionsService: RolePermissionsService,
   ) {}
 
   async signPayload<T extends object>(payload: T): Promise<string> {
@@ -42,6 +45,7 @@ export class AuthService {
       firstName: data.firstName,
       lastName: data.lastName,
       gender: data.gender as Gender | Gender.Male,
+      role: UserRole.USER, // Default role for new users
       dob: data.dob ? new Date(data.dob) : undefined,
       nationality: data.nationality,
       religion: data.religion,
@@ -50,7 +54,11 @@ export class AuthService {
       passwordHash,
     });
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    const token = await this.signPayload({ sub: String(user.id) });
+    const token = await this.signPayload({ 
+      sub: String(user.id), 
+      email: user.email, 
+      role: user.role 
+    });
     return { user: this.sanitize(user), access_token: token };
   }
 
@@ -63,7 +71,11 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const token = await this.signPayload({ sub: String(user.id) });
+    const token = await this.signPayload({ 
+      sub: String(user.id), 
+      email: user.email, 
+      role: user.role 
+    });
     return { user: this.sanitize(user), access_token: token };
   }
 
@@ -256,5 +268,83 @@ export class AuthService {
     await this.userRepo.getEntityManager().persistAndFlush(user);
     
     return { message: 'Password updated successfully' };
+  }
+
+  // Role Management Methods
+  async getAllUsers() {
+    const users = await this.userRepo.findAll();
+    return { users: users.map(user => this.sanitize(user)) };
+  }
+
+  async updateUserRole(userId: string, newRole: UserRole) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    user.role = newRole;
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    return { user: this.sanitize(user) };
+  }
+
+  async getUserPermissions(userRole: UserRole) {
+    const permissions = this.rolePermissionsService.getUserPermissions(userRole);
+    return { 
+      role: userRole, 
+      permissions 
+    };
+  }
+
+  async getRoleInfo(userRole: UserRole) {
+    const permissions = this.rolePermissionsService.getUserPermissions(userRole);
+    return {
+      role: userRole,
+      permissions,
+      canManageUsers: this.rolePermissionsService.canManageUser(userRole, UserRole.USER),
+      canAssignRoles: this.rolePermissionsService.canAssignRole(userRole, UserRole.USER),
+    };
+  }
+
+  // Development only - Create Super Admin
+  async createSuperAdmin(data: CreateSuperAdminDto) {
+    // Check if super admin already exists
+    const existingSuperAdmin = await this.userRepo.findOne({ role: UserRole.SUPER_ADMIN });
+    if (existingSuperAdmin) {
+      throw new BadRequestException('Super Admin already exists');
+    }
+
+    // Check if email already exists
+    const existingUser = await this.userRepo.findOne({ email: data.email });
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    const user = this.userRepo.create({
+      email: data.email,
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      gender: Gender.Male,
+      role: UserRole.SUPER_ADMIN,
+      nationality: 'Bangladesh',
+      religion: 'Islam',
+      acceptTerms: true,
+      avatarUrl: '/default-user.svg',
+      passwordHash,
+    });
+
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    const token = await this.signPayload({ 
+      sub: String(user.id), 
+      email: user.email, 
+      role: user.role 
+    });
+    
+    return { 
+      user: this.sanitize(user), 
+      access_token: token,
+      message: 'Super Admin created successfully'
+    };
   }
 }
