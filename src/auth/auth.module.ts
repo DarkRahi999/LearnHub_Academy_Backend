@@ -19,7 +19,7 @@ import { OtpCode } from './entity/otp.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'dev_jwt_secret'),
+        secret: configService.get<string>('JWT_SECRET') || process.env.JWT_SECRET || 'dev_jwt_secret',
         signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '1d') },
       }),
     }),

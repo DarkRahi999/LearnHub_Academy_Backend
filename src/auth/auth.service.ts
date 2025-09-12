@@ -79,13 +79,13 @@ export class AuthService {
         port: process.env.MAIL_PORT ? Number(process.env.MAIL_PORT) : undefined,
         secure: (process.env.MAIL_SECURE || 'false') === 'true',
         auth: {
-          user: process.env.MAIL_USER || 'elevixorbd@gmail.com',
-          pass: process.env.MAIL_PASS || '',
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
         },
       } as any);
       
       await transporter.sendMail({
-        from: process.env.MAIL_FROM || 'elevixorbd@gmail.com',
+        from: process.env.MAIL_FROM,
         to,
         subject,
         html,
@@ -129,6 +129,22 @@ export class AuthService {
     const user = await this.userRepo.findOne({ id: Number(userId) });
     if (!user) {
       throw new BadRequestException('User not found');
+    }
+
+    // Check for email uniqueness if email is being updated
+    if (typeof data.email !== 'undefined' && data.email !== user.email) {
+      const existingUser = await this.userRepo.findOne({ email: data.email });
+      if (existingUser) {
+        throw new BadRequestException('Email already exists');
+      }
+    }
+
+    // Check for phone uniqueness if phone is being updated
+    if (typeof data.phone !== 'undefined' && data.phone !== user.phone) {
+      const existingUser = await this.userRepo.findOne({ phone: data.phone });
+      if (existingUser) {
+        throw new BadRequestException('Phone number already exists');
+      }
     }
 
     if (typeof data.firstName !== 'undefined') user.firstName = data.firstName;
