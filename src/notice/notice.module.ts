@@ -3,11 +3,12 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { NoticeController } from './notice.controller';
 import { NoticeService } from './notice.service';
 import { Notice } from './notice.entity';
+import { NoticeRead } from './notice-read.entity';
 import { User } from '../auth/entity/user.entity';
 import { RolePermissionsService } from '../auth/role-permissions.service';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([Notice, User])],
+  imports: [MikroOrmModule.forFeature([Notice, NoticeRead, User])],
   controllers: [NoticeController],
   providers: [NoticeService, RolePermissionsService],
   exports: [NoticeService],

@@ -3,26 +3,26 @@ import { Gender, UserRole } from '../../utils/enums';
 
 @Entity({ tableName: 'users' })
 export class User {
-  [OptionalProps]?: 'createdAt' | 'updatedAt';
+  [OptionalProps]?: 'createdAt' | 'updatedAt' | 'firstName' | 'lastName';
   @PrimaryKey()
   id!: number;
 
-  @Property({ length: 64, unique: true })
+  @Property({ length: 64 })
   @Unique()
   email!: string;
   
-  @Property({ length: 16, unique: true })
+  @Property({ length: 16, nullable: true })
   @Unique()
-  phone!: string;
+  phone?: string;
 
-  @Property({ length: 32 })
-  firstName!: string;
+  @Property({ length: 32, nullable: true })
+  firstName?: string;
 
   @Property({ length: 32, nullable: true })
   lastName?: string;
 
-  @Enum({ items: () => Gender })
-  gender!: Gender;
+  @Enum({ items: () => Gender, nullable: true })
+  gender?: Gender;
 
   @Enum({ items: () => UserRole, default: UserRole.USER })
   role!: UserRole;
@@ -37,12 +37,12 @@ export class User {
   religion?: string;
 
   @Property({ default: false })
-  acceptTerms!: boolean;
+  acceptTerms?: boolean;
 
-  @Property()
-  avatarUrl!: string;
+  @Property({ nullable: true, default: '/default-user.svg' })
+  avatarUrl?: string;
 
-  @Property()
+  @Property({ nullable: false })
   passwordHash!: string;
 
   @Property({ onCreate: () => new Date() })

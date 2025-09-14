@@ -1,28 +1,34 @@
-import { Entity, PrimaryKey, Property, OptionalProps, ManyToOne } from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property, OptionalProps, ManyToOne, Check, Index } from '@mikro-orm/core';
 import { User } from '../auth/entity/user.entity';
 
 @Entity({ tableName: 'notices' })
+@Check({ expression: 'LENGTH(sub_heading) >= 5 AND LENGTH(sub_heading) <= 200' })
+@Check({ expression: 'LENGTH(description) >= 10' })
 export class Notice {
-  [OptionalProps]?: 'createdAt' | 'updatedAt';
+  [OptionalProps]?: 'createdAt' | 'editedAt';
 
   @PrimaryKey()
   id!: number;
 
-  @Property({ length: 200 })
-  title!: string;
+  @Property({ length: 200, columnType: 'varchar(200)', nullable: false })
+  @Index()
+  subHeading!: string;
 
-  @Property({ type: 'text' })
-  content!: string;
+  @Property({ type: 'text', nullable: false })
+  description!: string;
 
-  @Property({ default: true })
+  @Property({ default: true, nullable: false })
+  @Index()
   isActive!: boolean;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: false, eager: false })
+  @Index()
   createdBy!: User;
 
-  @Property({ onCreate: () => new Date() })
+  @Property({ onCreate: () => new Date(), nullable: false })
+  @Index()
   createdAt: Date = new Date();
 
-  @Property({ onCreate: () => new Date(), onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @Property({ nullable: true, onUpdate: () => new Date() })
+  editedAt?: Date;
 }

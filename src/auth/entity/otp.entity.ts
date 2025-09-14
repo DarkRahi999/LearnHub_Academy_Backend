@@ -1,6 +1,6 @@
 import { Entity, PrimaryKey, Property, Index } from '@mikro-orm/core';
 
-@Entity({ tableName: 'auth_otps' })
+@Entity({ tableName: 'auth_otp' })
 export class OtpCode {
   @PrimaryKey()
   id!: number;
