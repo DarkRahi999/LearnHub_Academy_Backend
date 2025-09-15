@@ -1,8 +1,7 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
-
 import { User } from './entity/user.entity';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -649,6 +648,88 @@ export class AuthService {
     return { 
       user: this.sanitize(user),
       message: 'User created successfully'
+    };
+  }
+
+  // Admin Management Methods
+  async getAllAdmins(params: { search?: string; page: number; limit: number }) {
+    const { search, page, limit } = params;
+    const offset = (page - 1) * limit;
+
+    const whereClause: any = {
+      role: UserRole.ADMIN
+    };
+
+    if (search) {
+      whereClause.$or = [
+        { firstName: { $ilike: `%${search}%` } },
+        { lastName: { $ilike: `%${search}%` } },
+        { email: { $ilike: `%${search}%` } }
+      ];
+    }
+
+    const [admins, total] = await this.userRepo.findAndCount(whereClause, {
+      limit,
+      offset,
+      orderBy: { createdAt: 'DESC' }
+    });
+
+    return {
+      admins: admins.map(admin => this.sanitize(admin)),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async promoteToAdmin(userId: string, currentUser: any) {
+    const user = await this.userRepo.findOne({ id: parseInt(userId) });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === UserRole.ADMIN) {
+      throw new BadRequestException('User is already an admin');
+    }
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot modify Super Admin role');
+    }
+
+    user.role = UserRole.ADMIN;
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+
+    return {
+      user: this.sanitize(user),
+      message: 'User promoted to admin successfully'
+    };
+  }
+
+  async demoteAdmin(userId: string, currentUser: any) {
+    const user = await this.userRepo.findOne({ id: parseInt(userId) });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot demote Super Admin');
+    }
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new BadRequestException('User is not an admin');
+    }
+
+    // Prevent self-demotion
+    if (user.id === parseInt(currentUser.userId)) {
+      throw new BadRequestException('Cannot demote yourself');
+    }
+
+    user.role = UserRole.USER;
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+
+    return {
+      user: this.sanitize(user),
+      message: 'Admin demoted to user successfully'
     };
   }
 }

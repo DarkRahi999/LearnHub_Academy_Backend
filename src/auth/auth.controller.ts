@@ -191,4 +191,39 @@ export class AuthController {
   async createSuperAdmin(@Body() body: CreateSuperAdminDto) {
     return this.authService.createSuperAdmin(body);
   }
+
+  // Admin Management Endpoints
+  @Get('admins')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get all admins (Super Admin only)' })
+  async getAllAdmins(
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
+  ) {
+    return this.authService.getAllAdmins({ search, page: page ? Number(page) : 1, limit: limit ? Number(limit) : 10 });
+  }
+
+
+  @Post('admins/promote')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Promote user to admin (Super Admin only)' })
+  @ApiBody({ schema: { type: 'object', properties: { userId: { type: 'string' } } } })
+  async promoteToAdmin(@Body() body: { userId: string }, @Req() req: any) {
+    return this.authService.promoteToAdmin(body.userId, req.user);
+  }
+
+  @Post('admins/demote')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Demote admin to user (Super Admin only)' })
+  @ApiBody({ schema: { type: 'object', properties: { userId: { type: 'string' } } } })
+  async demoteAdmin(@Body() body: { userId: string }, @Req() req: any) {
+    return this.authService.demoteAdmin(body.userId, req.user);
+  }
 }
