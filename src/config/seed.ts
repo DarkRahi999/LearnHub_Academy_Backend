@@ -28,10 +28,12 @@ export async function runSeeding() {
     orm = await MikroORM.init(mikroOrmConfig);
     console.log('✅ Database connection established');
     
-    // Update schema
-    console.log('🔧 Updating database schema...');
-    await orm.getSchemaGenerator().updateSchema();
-    console.log('✅ Database schema updated');
+    // Create schema (fresh installation)
+    console.log('🔧 Creating database schema...');
+    await orm.getSchemaGenerator().ensureDatabase();
+    await orm.getSchemaGenerator().dropSchema();
+    await orm.getSchemaGenerator().createSchema();
+    console.log('✅ Database schema created');
     
     const em = orm.em.fork();
     

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, Valida
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { NoticeService } from './notice.service';
 import { CreateNoticeDto } from './dto/create-notice.dto';
+import { UpdateNoticeDto } from './dto/update-notice.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RoleGuard, RequirePermissions } from '../auth/role.guard';
 import { Permission } from '../utils/enums';
@@ -37,6 +38,20 @@ export class NoticeController {
     return this.noticeService.getAllNoticesWithReadStatus(req.user);
   }
 
+  @Get(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get notice by ID' })
+  @ApiResponse({ status: 200, description: 'Notice retrieved successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 404, description: 'Notice not found' })
+  async getNoticeById(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number
+  ) {
+    return this.noticeService.getNoticeById(id);
+  }
+
   @Post(':id/read')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
@@ -60,5 +75,40 @@ export class NoticeController {
   @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
   async getUnreadNoticesCount(@Req() req: any) {
     return this.noticeService.getUnreadNoticesCount(req.user);
+  }
+
+  @Put(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.UPDATE_NOTICE)
+  @ApiOperation({ summary: 'Update a notice (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Notice updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid input data or ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Notice not found' })
+  async updateNotice(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) updateNoticeDto: UpdateNoticeDto,
+    @Req() req: any
+  ) {
+    return this.noticeService.updateNotice(id, updateNoticeDto, req.user);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.DELETE_NOTICE)
+  @ApiOperation({ summary: 'Delete a notice (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Notice deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Notice not found' })
+  async deleteNotice(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+    @Req() req: any
+  ) {
+    return this.noticeService.deleteNotice(id, req.user);
   }
 }

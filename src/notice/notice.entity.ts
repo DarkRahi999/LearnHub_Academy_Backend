@@ -2,8 +2,8 @@ import { Entity, PrimaryKey, Property, OptionalProps, ManyToOne, Check, Index } 
 import { User } from '../auth/entity/user.entity';
 
 @Entity({ tableName: 'notices' })
-@Check({ expression: 'LENGTH(sub_heading) >= 5 AND LENGTH(sub_heading) <= 200' })
-@Check({ expression: 'LENGTH(description) >= 10' })
+@Check({ expression: 'LENGTH(sub_heading) >= 5 AND LENGTH(sub_heading) <= 200', name: 'notices_sub_heading_length_check' })
+@Check({ expression: 'LENGTH(description) >= 10', name: 'notices_description_length_check' })
 export class Notice {
   [OptionalProps]?: 'createdAt' | 'editedAt';
 

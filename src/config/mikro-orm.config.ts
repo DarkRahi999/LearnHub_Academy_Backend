@@ -29,6 +29,9 @@ export default defineConfig({
     connection: {
       connectTimeoutMS: 30000,
       socketTimeoutMS: 30000,
+      ssl: process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('neon.tech') 
+        ? { rejectUnauthorized: false } 
+        : false,
     },
   },
 });

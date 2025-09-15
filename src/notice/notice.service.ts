@@ -5,6 +5,7 @@ import { Notice } from './notice.entity';
 import { NoticeRead } from './notice-read.entity';
 import { User } from '../auth/entity/user.entity';
 import { CreateNoticeDto } from './dto/create-notice.dto';
+import { UpdateNoticeDto } from './dto/update-notice.dto';
 import { RolePermissionsService } from '../auth/role-permissions.service';
 import { UserRole, Permission } from '../utils/enums';
 
@@ -78,6 +79,28 @@ export class NoticeService {
       }
       
       throw new BadRequestException('Failed to create notice. Please try again.');
+    }
+  }
+
+  async getNoticeById(noticeId: number) {
+    try {
+      const notice = await this.noticeRepo.findOne(
+        { id: noticeId, isActive: true },
+        { populate: ['createdBy'] }
+      );
+      
+      if (!notice) {
+        throw new NotFoundException('Notice not found');
+      }
+      
+      this.logger.log(`Retrieved notice with ID: ${noticeId}`);
+      return this.sanitize(notice);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error fetching notice by ID: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to fetch notice');
     }
   }
 
@@ -209,6 +232,92 @@ export class NoticeService {
     } catch (error) {
       this.logger.error(`Error fetching notices: ${error.message}`, error.stack);
       throw new BadRequestException('Failed to fetch notices');
+    }
+  }
+
+  async updateNotice(noticeId: number, updateNoticeDto: UpdateNoticeDto, userFromJwt: any) {
+    const em = this.noticeRepo.getEntityManager().fork();
+    
+    try {
+      const user = await em.findOne(User, { id: parseInt(userFromJwt.userId) });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      // Check if user has permission to update notices
+      if (!this.rolePermissionsService.hasPermission(user.role, Permission.UPDATE_NOTICE)) {
+        throw new ForbiddenException('You do not have permission to update notices');
+      }
+
+      const notice = await em.findOne(Notice, { id: noticeId, isActive: true });
+      if (!notice) {
+        throw new NotFoundException('Notice not found');
+      }
+
+      // Validate input data if provided
+      if (updateNoticeDto.subHeading !== undefined) {
+        if (!updateNoticeDto.subHeading || updateNoticeDto.subHeading.trim().length < 5) {
+          throw new BadRequestException('Subheading must be at least 5 characters long');
+        }
+        notice.subHeading = updateNoticeDto.subHeading.trim();
+      }
+      
+      if (updateNoticeDto.description !== undefined) {
+        if (!updateNoticeDto.description || updateNoticeDto.description.trim().length < 10) {
+          throw new BadRequestException('Description must be at least 10 characters long');
+        }
+        notice.description = updateNoticeDto.description.trim();
+      }
+
+      // Update timestamp
+      notice.editedAt = new Date();
+      
+      await em.persistAndFlush(notice);
+      
+      // Reload with relations for response
+      const updatedNotice = await em.findOne(Notice, { id: notice.id }, { populate: ['createdBy'] });
+      
+      this.logger.log(`Notice ${noticeId} updated successfully`);
+      return this.sanitize(updatedNotice!);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      this.logger.error(`Error updating notice: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to update notice');
+    }
+  }
+
+  async deleteNotice(noticeId: number, userFromJwt: any) {
+    const em = this.noticeRepo.getEntityManager().fork();
+    
+    try {
+      const user = await em.findOne(User, { id: parseInt(userFromJwt.userId) });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      // Check if user has permission to delete notices
+      if (!this.rolePermissionsService.hasPermission(user.role, Permission.DELETE_NOTICE)) {
+        throw new ForbiddenException('You do not have permission to delete notices');
+      }
+
+      const notice = await em.findOne(Notice, { id: noticeId });
+      if (!notice) {
+        throw new NotFoundException('Notice not found');
+      }
+
+      // Hard delete - completely remove from database
+      await em.removeAndFlush(notice);
+      
+      this.logger.log(`Notice ${noticeId} deleted successfully`);
+      return { message: 'Notice deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      this.logger.error(`Error deleting notice: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to delete notice');
     }
   }
 
