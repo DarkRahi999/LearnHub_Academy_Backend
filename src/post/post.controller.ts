@@ -12,7 +12,7 @@ export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @Post()
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.CREATE_POST)
   @ApiOperation({ summary: 'Create a new post (Super Admin only)' })
@@ -23,7 +23,7 @@ export class PostController {
   }
 
   @Get()
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all published posts' })
   @ApiResponse({ status: 200, description: 'Posts retrieved successfully' })
@@ -33,7 +33,7 @@ export class PostController {
   }
 
   @Get('admin')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.CREATE_POST)
   @ApiOperation({ summary: 'Get all posts for admin (Super Admin only)' })
@@ -43,7 +43,7 @@ export class PostController {
   }
 
   @Get(':id')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get post by ID' })
   @ApiResponse({ status: 200, description: 'Post retrieved successfully' })
@@ -54,7 +54,7 @@ export class PostController {
   }
 
   @Put(':id')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.UPDATE_POST)
   @ApiOperation({ summary: 'Update post (Super Admin only)' })
@@ -70,7 +70,7 @@ export class PostController {
   }
 
   @Delete(':id')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.DELETE_POST)
   @ApiOperation({ summary: 'Delete post (Super Admin only)' })

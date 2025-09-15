@@ -1,9 +1,10 @@
-import { MikroORM } from '@mikro-orm/core';
 import mikroOrmConfig from './mikro-orm.config';
 import { User } from '../auth/entity/user.entity';
+import { SystemSetting, SettingType, SettingCategory } from '../system-settings/entity/system-setting.entity';
 import { UserRole } from '../utils/enums';
 import * as bcrypt from 'bcryptjs';
 import * as dotenv from 'dotenv';
+import { MikroORM } from '@mikro-orm/postgresql';
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +76,75 @@ export async function runSeeding() {
     } else {
       console.log('ℹ️ Admin user already exists');
     }
+    
+    // Seed System Settings
+    console.log('⚙️ Seeding system settings...');
+    const defaultSettings = [
+      {
+        key: 'app_name',
+        value: 'LearnHub Academy',
+        type: SettingType.STRING,
+        category: SettingCategory.GENERAL,
+        name: 'Application Name',
+        description: 'The name displayed across the application',
+        isPublic: true,
+        isEditable: true,
+      },
+      {
+        key: 'app_description',
+        value: 'A comprehensive learning management system',
+        type: SettingType.STRING,
+        category: SettingCategory.GENERAL,
+        name: 'Application Description',
+        description: 'Brief description of the application',
+        isPublic: true,
+        isEditable: true,
+      },
+      {
+        key: 'max_login_attempts',
+        value: '5',
+        type: SettingType.NUMBER,
+        category: SettingCategory.SECURITY,
+        name: 'Maximum Login Attempts',
+        description: 'Maximum number of failed login attempts before account lockout',
+        isPublic: false,
+        isEditable: true,
+      },
+      {
+        key: 'maintenance_mode',
+        value: 'false',
+        type: SettingType.BOOLEAN,
+        category: SettingCategory.MAINTENANCE,
+        name: 'Maintenance Mode',
+        description: 'Enable/disable maintenance mode',
+        isPublic: false,
+        isEditable: true,
+      },
+      {
+        key: 'email_notifications',
+        value: 'true',
+        type: SettingType.BOOLEAN,
+        category: SettingCategory.EMAIL,
+        name: 'Email Notifications',
+        description: 'Enable/disable email notifications',
+        isPublic: false,
+        isEditable: true,
+      },
+    ];
+    
+    for (const settingData of defaultSettings) {
+      const existingSetting = await em.findOne(SystemSetting, { key: settingData.key });
+      if (!existingSetting) {
+        const setting = em.create(SystemSetting, settingData);
+        em.persist(setting);
+        console.log(`✅ System setting created: ${settingData.key}`);
+      } else {
+        console.log(`ℹ️ System setting already exists: ${settingData.key}`);
+      }
+    }
+    
+    await em.flush();
+    console.log('✅ System settings seeding completed');
     
     console.log('🎉 Database seeding completed successfully!');
     console.log('');

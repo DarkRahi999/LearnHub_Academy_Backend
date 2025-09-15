@@ -16,18 +16,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    // Only log in development and for debugging
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
-      console.log('JWT validation - Payload received:', payload);
-    }
-    const result = { 
+    return { 
       userId: payload.sub,
       role: payload.role,
       email: payload.email 
     };
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
-      console.log('JWT validation - Returning user:', result);
-    }
-    return result;
   }
 }

@@ -12,7 +12,7 @@ export class NoticeController {
   constructor(private readonly noticeService: NoticeService) {}
 
   @Post()
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.CREATE_NOTICE)
   @ApiOperation({ summary: 'Create a new notice (Admin/Super Admin only)' })
@@ -28,7 +28,7 @@ export class NoticeController {
   }
 
   @Get()
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all active notices with read status' })
   @ApiResponse({ status: 200, description: 'Notices retrieved successfully' })
@@ -38,7 +38,7 @@ export class NoticeController {
   }
 
   @Post(':id/read')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Mark notice as read' })
   @ApiResponse({ status: 200, description: 'Notice marked as read successfully' })
@@ -53,7 +53,7 @@ export class NoticeController {
   }
 
   @Get('unread/count')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get unread notices count' })
   @ApiResponse({ status: 200, description: 'Unread count retrieved successfully' })

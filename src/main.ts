@@ -11,8 +11,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
   try {
+    logger.log('🔄 Creating NestJS application...');
     const app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log', 'debug', 'verbose']
+      logger: ['error', 'warn', 'log'],
+      abortOnError: false
     });
     
     // CORS configuration
@@ -61,25 +63,12 @@ async function bootstrap() {
     SwaggerModule.setup('api-docs', app, document);
 
     const port = process.env.PORT || 8001;
+    logger.log(`🔄 Starting server on port ${port}...`);
     await app.listen(port);
 
     logger.log(`🚀 Application is running on: http://localhost:${port}`);
     logger.log(`📚 API Documentation: http://localhost:${port}/api-docs`);
-    logger.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     
-    // Log database connection (safely)
-    const dbUrl = process.env.DATABASE_URL || '';
-    if (dbUrl) {
-      const safeUrl = dbUrl.replace(/:([^:@]+)@/, ':*****@');
-      logger.log(`💾 Database: ${safeUrl}`);
-    }
-    
-    // Development tip
-    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-      logger.log(`🌱 To seed development data, run: npm run seed`);
-    }
-    
-    logger.log(`✨ Application startup completed successfully!`);
   } catch (error) {
     logger.error('❌ Failed to start application:', error);
     process.exit(1);

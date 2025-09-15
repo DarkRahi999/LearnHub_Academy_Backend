@@ -2,11 +2,14 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
+
 import { User } from './entity/user.entity';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { OtpCode } from './entity/otp.entity';
 import * as nodemailer from 'nodemailer';
 import { Gender, UserRole, Permission } from '../utils/enums';
@@ -46,7 +49,7 @@ export class AuthService {
       lastName: data.lastName,
       gender: data.gender as Gender | Gender.Male,
       role: UserRole.USER, // Default role for new users
-      dob: data.dob ? new Date(data.dob) : undefined,
+      dob: (data.dob && data.dob.trim() !== '') ? new Date(data.dob) : undefined,
       nationality: data.nationality,
       religion: data.religion,
       acceptTerms: data.acceptTerms,
@@ -67,10 +70,21 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    
+    // Check if user is blocked
+    if (user.isBlocked) {
+      throw new UnauthorizedException('Your account has been blocked. Please contact admin.');
+    }
+    
     const ok = await bcrypt.compare(data.password, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    
+    // Update last login timestamp
+    user.lastLoginAt = new Date();
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    
     const token = await this.signPayload({ 
       sub: String(user.id), 
       email: user.email, 
@@ -103,7 +117,7 @@ export class AuthService {
         html,
       });
     } catch (error) {
-      console.error('Failed to send email:', error);
+      // Email sending failed, but don't log sensitive details
       throw new BadRequestException('Failed to send OTP email. Please try again.');
     }
   }
@@ -111,7 +125,13 @@ export class AuthService {
 
   private sanitize(user: User) {
     const { passwordHash, ...rest } = user as any;
-    return rest;
+    return {
+      ...rest,
+      lastLoginAt: user.lastLoginAt?.toISOString() || null,
+      dob: user.dob?.toISOString() || null,
+      createdAt: user.createdAt?.toISOString(),
+      updatedAt: user.updatedAt?.toISOString()
+    };
   }
 
   async getProfile(userId: string) {
@@ -164,7 +184,14 @@ export class AuthService {
     if (typeof data.email !== 'undefined') user.email = data.email;
     if (typeof data.phone !== 'undefined') user.phone = data.phone as any;
     if (typeof data.gender !== 'undefined') user.gender = data.gender as any;
-    if (typeof data.dob !== 'undefined') user.dob = data.dob ? new Date(data.dob) : undefined;
+    if (typeof data.dob !== 'undefined') {
+      // Handle empty string as undefined for date field
+      if (data.dob && data.dob.trim() !== '') {
+        user.dob = new Date(data.dob);
+      } else {
+        user.dob = undefined;
+      }
+    }
     if (typeof data.nationality !== 'undefined') user.nationality = data.nationality as any;
     if (typeof data.religion !== 'undefined') user.religion = data.religion as any;
     if (typeof data.avatarUrl !== 'undefined') user.avatarUrl = data.avatarUrl as any;
@@ -271,20 +298,257 @@ export class AuthService {
   }
 
   // Role Management Methods
-  async getAllUsers() {
-    const users = await this.userRepo.findAll();
-    return { users: users.map(user => this.sanitize(user)) };
+  async getAllUsers(params: { search?: string; role?: UserRole; page?: number; limit?: number } = {}) {
+    const { search, role, page = 1, limit = 10 } = params;
+    const offset = (page - 1) * limit;
+    
+    const where: any = {};
+    
+    if (search) {
+      where.$or = [
+        { firstName: { $ilike: `%${search}%` } },
+        { lastName: { $ilike: `%${search}%` } },
+        { email: { $ilike: `%${search}%` } },
+        { phone: { $ilike: `%${search}%` } }
+      ];
+    }
+    
+    if (role) {
+      where.role = role;
+    }
+    
+    const [users, total] = await this.userRepo.findAndCount(where, {
+      offset,
+      limit,
+      orderBy: { createdAt: 'DESC' }
+    });
+    
+    return {
+      users: users.map(user => this.sanitize(user)),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
-  async updateUserRole(userId: string, newRole: UserRole) {
+  async getUserById(userId: string) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return { user: this.sanitize(user) };
+  }
+
+  async updateUser(userId: string, updateData: any, currentUser: any) {
     const user = await this.userRepo.findOne({ id: Number(userId) });
     if (!user) {
       throw new BadRequestException('User not found');
     }
 
+    // Check if current user has permission to update this user
+    if (!this.canManageUser(currentUser, user)) {
+      throw new BadRequestException('You do not have permission to update this user');
+    }
+
+    // Check for email uniqueness if email is being updated
+    if (updateData.email && updateData.email !== user.email) {
+      const existingUser = await this.userRepo.findOne({ email: updateData.email });
+      if (existingUser && existingUser.id !== user.id) {
+        throw new BadRequestException('Email already exists');
+      }
+    }
+
+    // Check for phone uniqueness if phone is being updated
+    if (updateData.phone && updateData.phone !== user.phone) {
+      const existingUser = await this.userRepo.findOne({ phone: updateData.phone });
+      if (existingUser && existingUser.id !== user.id) {
+        throw new BadRequestException('Phone number already exists');
+      }
+    }
+
+    // Update allowed fields
+    const allowedFields = ['firstName', 'lastName', 'email', 'phone', 'gender', 'nationality', 'religion', 'avatarUrl'];
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        (user as any)[field] = updateData[field];
+      }
+    }
+
+    // Handle dob separately to properly handle empty strings
+    if (updateData.dob !== undefined) {
+      if (updateData.dob && updateData.dob.trim() !== '') {
+        user.dob = new Date(updateData.dob);
+      } else {
+        user.dob = undefined;
+      }
+    }
+
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    return { user: this.sanitize(user), message: 'User updated successfully' };
+  }
+
+  async updateUserRole(userId: string, newRole: UserRole, currentUser: any) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Check if current user can assign this role
+    if (!this.rolePermissionsService.canAssignRole(currentUser.role, newRole)) {
+      throw new BadRequestException('You do not have permission to assign this role');
+    }
+
+    // Prevent self-demotion from super admin
+    if (currentUser.userId === user.id && currentUser.role === UserRole.SUPER_ADMIN && newRole !== UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('You cannot demote yourself from Super Admin role');
+    }
+
     user.role = newRole;
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    return { user: this.sanitize(user) };
+    return { user: this.sanitize(user), message: 'User role updated successfully' };
+  }
+
+  async updateUserStatus(userId: string, isBlocked: boolean, currentUser: any) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Check if current user has permission to block/unblock users
+    if (!this.canManageUser(currentUser, user)) {
+      throw new BadRequestException('You do not have permission to modify this user');
+    }
+
+    // Prevent self-blocking
+    if (currentUser.userId === user.id) {
+      throw new BadRequestException('You cannot block/unblock yourself');
+    }
+
+    // Prevent blocking super admins by admins
+    if (currentUser.role === UserRole.ADMIN && user.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Admins cannot block Super Admins');
+    }
+
+    user.isBlocked = isBlocked;
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    
+    const action = isBlocked ? 'blocked' : 'unblocked';
+    return { user: this.sanitize(user), message: `User ${action} successfully` };
+  }
+
+  async deleteUser(userId: string, currentUser: any) {
+    const user = await this.userRepo.findOne({ id: Number(userId) });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Only super admin can delete users
+    if (currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Only Super Admin can delete users');
+    }
+
+    // Prevent self-deletion
+    if (currentUser.userId === user.id) {
+      throw new BadRequestException('You cannot delete yourself');
+    }
+
+    // Prevent deleting other super admins
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot delete Super Admin users');
+    }
+
+    await this.userRepo.getEntityManager().removeAndFlush(user);
+    return { message: 'User deleted successfully' };
+  }
+
+  async bulkUserAction(userIds: string[], action: 'delete' | 'block' | 'unblock' | 'role_change', currentUser: any, newRole?: UserRole) {
+    const users = await this.userRepo.find({ id: { $in: userIds.map(id => Number(id)) } });
+    
+    if (users.length === 0) {
+      throw new BadRequestException('No users found');
+    }
+
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    for (const user of users) {
+      try {
+        // Prevent actions on self
+        if (currentUser.userId === user.id) {
+          results.failed++;
+          results.errors.push(`Cannot perform action on yourself (${user.email})`);
+          continue;
+        }
+
+        switch (action) {
+          case 'delete':
+            if (currentUser.role !== UserRole.SUPER_ADMIN) {
+              results.failed++;
+              results.errors.push(`Only Super Admin can delete users (${user.email})`);
+              continue;
+            }
+            if (user.role === UserRole.SUPER_ADMIN) {
+              results.failed++;
+              results.errors.push(`Cannot delete Super Admin (${user.email})`);
+              continue;
+            }
+            await this.userRepo.getEntityManager().removeAndFlush(user);
+            break;
+
+          case 'block':
+          case 'unblock':
+            if (!this.canManageUser(currentUser, user)) {
+              results.failed++;
+              results.errors.push(`No permission to modify user (${user.email})`);
+              continue;
+            }
+            user.isBlocked = action === 'block';
+            await this.userRepo.getEntityManager().persistAndFlush(user);
+            break;
+
+          case 'role_change':
+            if (!newRole) {
+              results.failed++;
+              results.errors.push(`Role not specified for user (${user.email})`);
+              continue;
+            }
+            if (!this.rolePermissionsService.canAssignRole(currentUser.role, newRole)) {
+              results.failed++;
+              results.errors.push(`No permission to assign role to user (${user.email})`);
+              continue;
+            }
+            user.role = newRole;
+            await this.userRepo.getEntityManager().persistAndFlush(user);
+            break;
+        }
+        
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Error processing user ${user.email}: ${error.message}`);
+      }
+    }
+
+    return {
+      message: `Bulk action completed. ${results.success} successful, ${results.failed} failed.`,
+      results
+    };
+  }
+
+  private canManageUser(currentUser: any, targetUser: User): boolean {
+    // Super admin can manage everyone except themselves for certain actions
+    if (currentUser.role === UserRole.SUPER_ADMIN) {
+      return true;
+    }
+    
+    // Admin can manage users but not other admins or super admins
+    if (currentUser.role === UserRole.ADMIN) {
+      return targetUser.role === UserRole.USER;
+    }
+    
+    return false;
   }
 
   async getUserPermissions(userRole: UserRole) {
@@ -345,6 +609,46 @@ export class AuthService {
       user: this.sanitize(user), 
       access_token: token,
       message: 'Super Admin created successfully'
+    };
+  }
+
+  // Admin creates user with role assignment
+  async createUser(data: CreateUserDto, createdByUserId: string) {
+    // Check if email already exists
+    const existingUser = await this.userRepo.findOne({ email: data.email });
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    // Check if phone already exists
+    if (data.phone) {
+      const existingPhone = await this.userRepo.findOne({ phone: data.phone });
+      if (existingPhone) {
+        throw new BadRequestException('Phone number already exists');
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    const user = this.userRepo.create({
+      email: data.email,
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      gender: data.gender || Gender.Male,
+      role: data.role || UserRole.USER,
+      dob: (data.dob && data.dob.trim() !== '') ? new Date(data.dob) : undefined,
+      nationality: data.nationality || 'Bangladesh',
+      religion: data.religion || 'Islam',
+      acceptTerms: true,
+      avatarUrl: '/default-user.svg',
+      passwordHash,
+    });
+
+    await this.userRepo.getEntityManager().persistAndFlush(user);
+    
+    return { 
+      user: this.sanitize(user),
+      message: 'User created successfully'
     };
   }
 }

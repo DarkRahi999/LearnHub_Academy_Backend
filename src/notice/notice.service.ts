@@ -57,7 +57,7 @@ export class NoticeService {
       // Reload with relations for response
       const savedNotice = await em.findOne(Notice, { id: notice.id }, { populate: ['createdBy'] });
       
-      this.logger.log(`Notice created successfully with ID: ${notice.id} by user: ${user.email}`);
+      this.logger.log(`Notice created successfully with ID: ${notice.id}`);
       return this.sanitize(savedNotice!);
     } catch (error) {
       this.logger.error(`Error creating notice: ${error.message}`, error.stack);
@@ -111,7 +111,7 @@ export class NoticeService {
 
       await em.persistAndFlush(noticeRead);
       
-      this.logger.log(`Notice ${noticeId} marked as read by user ${user.email}`);
+      this.logger.log(`Notice ${noticeId} marked as read`);
       return { message: 'Notice marked as read successfully' };
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
@@ -137,7 +137,7 @@ export class NoticeService {
       
       const unreadCount = totalNotices - readNoticesCount;
       
-      this.logger.log(`User ${user.email} has ${unreadCount} unread notices`);
+      this.logger.log(`User has ${unreadCount} unread notices`);
       return { unreadCount: Math.max(0, unreadCount) };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -176,7 +176,7 @@ export class NoticeService {
         })
       );
       
-      this.logger.log(`Retrieved ${notices.length} notices with read status for user ${user.email}`);
+      this.logger.log(`Retrieved ${notices.length} notices with read status`);
       return { 
         notices: noticesWithReadStatus,
         total: notices.length 

@@ -3,7 +3,7 @@ import { Gender, UserRole } from '../../utils/enums';
 
 @Entity({ tableName: 'users' })
 export class User {
-  [OptionalProps]?: 'createdAt' | 'updatedAt' | 'firstName' | 'lastName';
+  [OptionalProps]?: 'createdAt' | 'updatedAt' | 'firstName' | 'lastName' | 'isBlocked' | 'lastLoginAt';
   @PrimaryKey()
   id!: number;
 
@@ -45,11 +45,16 @@ export class User {
   @Property({ nullable: false })
   passwordHash!: string;
 
+  @Property({ default: false })
+  isBlocked?: boolean;
+
+  @Property({ type: Date, nullable: true })
+  lastLoginAt?: Date;
+
   @Property({ onCreate: () => new Date() })
   createdAt: Date = new Date();
 
   @Property({ onCreate: () => new Date(), onUpdate: () => new Date() })
   updatedAt: Date = new Date();
 }
-
 
