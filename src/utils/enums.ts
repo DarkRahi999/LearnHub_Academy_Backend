@@ -25,6 +25,9 @@ export enum Permission {
   UPDATE_NOTICE = 'update_notice',
   DELETE_NOTICE = 'delete_notice',
   MANAGE_USERS = 'manage_users',
+  CREATE_COURSE = 'create_course',
+  UPDATE_COURSE = 'update_course',
+  DELETE_COURSE = 'delete_course',
   
   // Super Admin permissions
   CREATE_POST = 'create_post',

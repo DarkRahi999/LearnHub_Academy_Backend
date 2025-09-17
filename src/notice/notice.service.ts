@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository, EntityManager } from '@mikro-orm/core';
+import { EntityRepository } from '@mikro-orm/core';
 import { Notice } from './notice.entity';
 import { NoticeRead } from './notice-read.entity';
 import { User } from '../auth/entity/user.entity';
@@ -152,15 +152,26 @@ export class NoticeService {
         throw new BadRequestException('User not found');
       }
 
-      // Get all active notices
-      const totalNotices = await this.noticeRepo.count({ isActive: true });
+      // Only count notices created after user registration
+      // This prevents new users from seeing all historical notices as "unread"
+      const userCreatedAt = user.createdAt;
       
-      // Get count of notices this user has read
-      const readNoticesCount = await this.noticeReadRepo.count({ user });
+      // Get all active notices created after user registration
+      const relevantNotices = await this.noticeRepo.find({
+        isActive: true,
+        createdAt: { $gte: userCreatedAt }
+      });
       
-      const unreadCount = totalNotices - readNoticesCount;
+      // Get count of notices this user has read from relevant notices
+      const relevantNoticeIds = relevantNotices.map(notice => notice.id);
+      const readNoticesCount = await this.noticeReadRepo.count({ 
+        user,
+        notice: { id: { $in: relevantNoticeIds } }
+      });
       
-      this.logger.log(`User has ${unreadCount} unread notices`);
+      const unreadCount = relevantNotices.length - readNoticesCount;
+      
+      this.logger.log(`User has ${unreadCount} unread notices (${relevantNotices.length} relevant, ${readNoticesCount} read)`);
       return { unreadCount: Math.max(0, unreadCount) };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -171,15 +182,36 @@ export class NoticeService {
     }
   }
 
-  async getAllNoticesWithReadStatus(userFromJwt: any) {
+  async getAllNoticesWithReadStatus(userFromJwt: any, searchTerm?: string) {
     try {
       const user = await this.userRepo.findOne({ id: parseInt(userFromJwt.userId) });
       if (!user) {
         throw new BadRequestException('User not found');
       }
 
+      // Build search query - only show notices created after user registration
+      const whereCondition: any = { 
+        isActive: true,
+        createdAt: { $gte: user.createdAt }
+      };
+      
+      if (searchTerm && searchTerm.trim()) {
+        const searchPattern = `%${searchTerm.trim().toLowerCase()}%`;
+        whereCondition.$and = [
+          { createdAt: { $gte: user.createdAt } },
+          {
+            $or: [
+              { subHeading: { $ilike: searchPattern } },
+              { description: { $ilike: searchPattern } }
+            ]
+          }
+        ];
+        // Remove the conflicting createdAt from the root level
+        delete whereCondition.createdAt;
+      }
+
       const notices = await this.noticeRepo.find(
-        { isActive: true },
+        whereCondition,
         { 
           populate: ['createdBy'],
           orderBy: { createdAt: 'DESC' },
@@ -199,10 +231,11 @@ export class NoticeService {
         })
       );
       
-      this.logger.log(`Retrieved ${notices.length} notices with read status`);
+      this.logger.log(`Retrieved ${notices.length} notices with read status${searchTerm ? ` (search: "${searchTerm}")` : ''} for user since ${user.createdAt}`);
       return { 
         notices: noticesWithReadStatus,
-        total: notices.length 
+        total: notices.length,
+        searchTerm: searchTerm || null
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -213,18 +246,18 @@ export class NoticeService {
     }
   }
 
-  async getAllNotices() {
+  async getAllNotices(isAdminView: boolean = false) {
     try {
       const notices = await this.noticeRepo.find(
         { isActive: true },
         { 
           populate: ['createdBy'],
           orderBy: { createdAt: 'DESC' },
-          limit: 100 // Prevent loading too many notices at once
+          limit: isAdminView ? 500 : 100 // Admins can see more notices
         }
       );
       
-      this.logger.log(`Retrieved ${notices.length} active notices`);
+      this.logger.log(`Retrieved ${notices.length} active notices${isAdminView ? ' (admin view)' : ''}`);
       return { 
         notices: notices.map(notice => this.sanitize(notice)),
         total: notices.length 
@@ -307,17 +340,132 @@ export class NoticeService {
         throw new NotFoundException('Notice not found');
       }
 
-      // Hard delete - completely remove from database
-      await em.removeAndFlush(notice);
+      // Start transaction for safe deletion
+      await em.begin();
       
-      this.logger.log(`Notice ${noticeId} deleted successfully`);
-      return { message: 'Notice deleted successfully' };
+      try {
+        // First, delete all related NoticeRead records
+        const relatedReads = await em.find(NoticeRead, { notice });
+        if (relatedReads.length > 0) {
+          await em.removeAndFlush(relatedReads);
+          this.logger.log(`Deleted ${relatedReads.length} related read records for notice ${noticeId}`);
+        }
+
+        // Then perform soft delete by setting isActive to false
+        // This preserves the notice data while making it unavailable
+        notice.isActive = false;
+        notice.editedAt = new Date();
+        await em.persistAndFlush(notice);
+        
+        // Commit the transaction
+        await em.commit();
+        
+        this.logger.log(`Notice ${noticeId} soft deleted successfully (marked as inactive)`);
+        return { message: 'Notice deleted successfully' };
+      } catch (transactionError) {
+        // Rollback the transaction on any error
+        await em.rollback();
+        throw transactionError;
+      }
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
         throw error;
       }
       this.logger.error(`Error deleting notice: ${error.message}`, error.stack);
       throw new BadRequestException('Failed to delete notice');
+    }
+  }
+
+  // Admin-only method for permanent deletion (hard delete)
+  async permanentlyDeleteNotice(noticeId: number, userFromJwt: any) {
+    const em = this.noticeRepo.getEntityManager().fork();
+    
+    try {
+      const user = await em.findOne(User, { id: parseInt(userFromJwt.userId) });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      // Only SUPER_ADMIN can permanently delete notices
+      if (user.role !== UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException('Only Super Admin can permanently delete notices');
+      }
+
+      const notice = await em.findOne(Notice, { id: noticeId });
+      if (!notice) {
+        throw new NotFoundException('Notice not found');
+      }
+
+      // Start transaction for safe permanent deletion
+      await em.begin();
+      
+      try {
+        // First, delete all related NoticeRead records
+        const relatedReads = await em.find(NoticeRead, { notice });
+        if (relatedReads.length > 0) {
+          await em.removeAndFlush(relatedReads);
+          this.logger.log(`Permanently deleted ${relatedReads.length} related read records for notice ${noticeId}`);
+        }
+
+        // Then permanently delete the notice
+        await em.removeAndFlush(notice);
+        
+        // Commit the transaction
+        await em.commit();
+        
+        this.logger.log(`Notice ${noticeId} permanently deleted by Super Admin`);
+        return { message: 'Notice permanently deleted successfully' };
+      } catch (transactionError) {
+        // Rollback the transaction on any error
+        await em.rollback();
+        throw transactionError;
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      this.logger.error(`Error permanently deleting notice: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to permanently delete notice');
+    }
+  }
+
+  // Method to restore soft-deleted notices
+  async restoreNotice(noticeId: number, userFromJwt: any) {
+    const em = this.noticeRepo.getEntityManager().fork();
+    
+    try {
+      const user = await em.findOne(User, { id: parseInt(userFromJwt.userId) });
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      // Check if user has permission to restore notices
+      if (!this.rolePermissionsService.hasPermission(user.role, Permission.UPDATE_NOTICE)) {
+        throw new ForbiddenException('You do not have permission to restore notices');
+      }
+
+      // Find the notice including inactive ones
+      const notice = await em.findOne(Notice, { id: noticeId, isActive: false });
+      if (!notice) {
+        throw new NotFoundException('Deleted notice not found');
+      }
+
+      // Restore the notice by setting isActive to true
+      notice.isActive = true;
+      notice.editedAt = new Date();
+      await em.persistAndFlush(notice);
+      
+      this.logger.log(`Notice ${noticeId} restored successfully`);
+      return { 
+        message: 'Notice restored successfully',
+        notice: this.sanitize(notice)
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      this.logger.error(`Error restoring notice: ${error.message}`, error.stack);
+      throw new BadRequestException('Failed to restore notice');
     }
   }
 

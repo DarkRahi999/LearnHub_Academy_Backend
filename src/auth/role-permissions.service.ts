@@ -19,6 +19,12 @@ export class RolePermissionsService {
       Permission.UPDATE_NOTICE,
       Permission.DELETE_NOTICE,
       Permission.MANAGE_USERS,
+      Permission.CREATE_POST,
+      Permission.UPDATE_POST,
+      Permission.DELETE_POST,
+      Permission.CREATE_COURSE,
+      Permission.UPDATE_COURSE,
+      Permission.DELETE_COURSE,
     ],
     [UserRole.SUPER_ADMIN]: [
       Permission.VIEW_PROFILE,
@@ -35,6 +41,9 @@ export class RolePermissionsService {
       Permission.MANAGE_ADMINS,
       Permission.MANAGE_PERMISSIONS,
       Permission.SYSTEM_SETTINGS,
+      Permission.CREATE_COURSE,
+      Permission.UPDATE_COURSE,
+      Permission.DELETE_COURSE,
     ],
   };
 

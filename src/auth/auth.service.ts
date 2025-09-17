@@ -8,10 +8,9 @@ import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { OtpCode } from './entity/otp.entity';
 import * as nodemailer from 'nodemailer';
-import { Gender, UserRole, Permission } from '../utils/enums';
+import { Gender, UserRole } from '../utils/enums';
 import * as bcrypt from 'bcryptjs';
 import { RolePermissionsService } from './role-permissions.service';
 import { CreateSuperAdminDto } from './dto/create-super-admin.dto';
@@ -41,6 +40,8 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(data.password, 10);
+
+    
     const user = this.userRepo.create({
       email: data.email,
       phone: data.phone,

@@ -15,7 +15,7 @@ export class PostController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.CREATE_POST)
-  @ApiOperation({ summary: 'Create a new post (Super Admin only)' })
+  @ApiOperation({ summary: 'Create a new post (Admin/Super Admin only)' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   async createPost(@Body() createPostDto: CreatePostDto, @Req() req: any) {
@@ -36,7 +36,7 @@ export class PostController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.CREATE_POST)
-  @ApiOperation({ summary: 'Get all posts for admin (Super Admin only)' })
+  @ApiOperation({ summary: 'Get all posts for admin (Admin/Super Admin only)' })
   @ApiResponse({ status: 200, description: 'Posts retrieved successfully' })
   async getAllPostsForAdmin() {
     return this.postService.getAllPostsForAdmin();
@@ -57,7 +57,7 @@ export class PostController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.UPDATE_POST)
-  @ApiOperation({ summary: 'Update post (Super Admin only)' })
+  @ApiOperation({ summary: 'Update post (Admin/Super Admin only)' })
   @ApiResponse({ status: 200, description: 'Post updated successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Post not found' })
@@ -73,7 +73,7 @@ export class PostController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @RequirePermissions(Permission.DELETE_POST)
-  @ApiOperation({ summary: 'Delete post (Super Admin only)' })
+  @ApiOperation({ summary: 'Delete post (Admin/Super Admin only)' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Post not found' })

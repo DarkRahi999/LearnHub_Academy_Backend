@@ -8,6 +8,7 @@ import { AuthModule } from './auth';
 import { NoticeModule } from './notice/notice.module';
 import { PostModule } from './post/post.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { CourseModule } from './course/course.module';
 import { MikroORM } from '@mikro-orm/core';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { ValidationPipe } from '@nestjs/common';
     NoticeModule,
     PostModule,
     SystemSettingsModule,
+    CourseModule,
   ],
   controllers: [AppController],
   providers: [
