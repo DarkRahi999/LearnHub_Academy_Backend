@@ -29,24 +29,47 @@ export class CourseController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all active courses with optional search' })
+  @ApiOperation({ summary: 'Get all active courses with optional search and filters' })
   @ApiResponse({ status: 200, description: 'Courses retrieved successfully' })
   async getAllCourses(
     @Query('search') search?: string,
     @Query('page', ParseIntPipe) page: number = 1,
-    @Query('limit', ParseIntPipe) limit: number = 10
+    @Query('limit', ParseIntPipe) limit: number = 10,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+    @Query('createdBy') createdBy?: number,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string
   ) {
     const logger = new Logger('CourseController');
-    logger.log(`Fetching courses with search: ${search}, page: ${page}, limit: ${limit}`);
+    logger.log(`Fetching courses with search: ${search}, page: ${page}, limit: ${limit}, sortBy: ${sortBy}, sortOrder: ${sortOrder}, createdBy: ${createdBy}, dateFrom: ${dateFrom}, dateTo: ${dateTo}`);
     
     // Ensure page and limit are numbers
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.max(1, Math.min(100, Number(limit) || 10)); // Limit max to 100 for performance
     
-    logger.log(`Processed params - page: ${pageNum}, limit: ${limitNum}`);
+    // Validate sortOrder
+    const order = sortOrder && (sortOrder.toUpperCase() === 'ASC' || sortOrder.toUpperCase() === 'DESC') 
+      ? sortOrder.toUpperCase() 
+      : 'DESC';
+    
+    // Validate sortBy
+    const validSortFields = ['createdAt', 'title', 'highlight'];
+    const sortField = sortBy && validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    
+    logger.log(`Processed params - page: ${pageNum}, limit: ${limitNum}, sortField: ${sortField}, order: ${order}`);
     
     try {
-      const result = await this.courseService.getAllCourses(search, pageNum, limitNum);
+      const result = await this.courseService.getAllCourses({
+        search,
+        page: pageNum,
+        limit: limitNum,
+        sortBy: sortField,
+        sortOrder: order as 'ASC' | 'DESC',
+        createdBy: createdBy ? Number(createdBy) : undefined,
+        dateFrom,
+        dateTo
+      });
       logger.log(`Successfully fetched ${result.courses.length} courses`);
       return result;
     } catch (error) {
