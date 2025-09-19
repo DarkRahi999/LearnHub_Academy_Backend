@@ -6,7 +6,6 @@ import mikroOrmConfig from './config/mikro-orm.config';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth';
 import { NoticeModule } from './notice/notice.module';
-import { PostModule } from './post/post.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CourseModule } from './course/course.module';
 import { BookModule } from './book/book.module';
@@ -20,7 +19,6 @@ import { ValidationPipe } from '@nestjs/common';
     MikroOrmModule.forRoot(mikroOrmConfig),
     AuthModule,
     NoticeModule,
-    PostModule,
     SystemSettingsModule,
     CourseModule,
     BookModule,
