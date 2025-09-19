@@ -7,13 +7,14 @@ import { NoticeRead } from '../notice/notice-read.entity';
 import { Post } from '../post/post.entity';
 import { SystemSetting } from '../system-settings/entity/system-setting.entity';
 import { Course } from '../course/course.entity';
+import { Book } from '../book/book.entity';
 
 dotenv.config();
 
 export default defineConfig({
   driver: PostgreSqlDriver,
   clientUrl: process.env.DATABASE_URL,
-  entities: [User, OtpCode, Notice, NoticeRead, Post, SystemSetting, Course],
+  entities: [User, OtpCode, Notice, NoticeRead, Post, SystemSetting, Course, Book],
   debug: false,
   allowGlobalContext: true,
   pool: {
