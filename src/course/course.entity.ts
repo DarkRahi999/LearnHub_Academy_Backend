@@ -24,6 +24,12 @@ export class Course {
   @Property({ type: 'text', nullable: true })
   imageUrl?: string;
 
+  @Property({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price?: number;
+
+  @Property({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  discountPrice?: number;
+
   @Property({ default: true, nullable: false })
   @Index()
   isActive!: boolean;

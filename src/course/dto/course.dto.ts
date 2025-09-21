@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, MinLength, MaxLength, IsOptional, Matches, IsUrl } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength, IsOptional, Matches, IsUrl, IsNumber, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCourseDto {
@@ -51,4 +51,26 @@ export class CreateCourseDto {
   @IsOptional()
   @IsUrl({}, { message: 'Image URL must be a valid URL' })
   imageUrl?: string;
+
+  @ApiProperty({ 
+    example: 29.99, 
+    description: 'Course regular price in decimal format (optional)',
+    minimum: 0,
+    required: false
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Price must be a number' })
+  @Min(0, { message: 'Price must be greater than or equal to 0' })
+  price?: number;
+
+  @ApiProperty({ 
+    example: 19.99, 
+    description: 'Course discount price in decimal format (optional)',
+    minimum: 0,
+    required: false
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Discount price must be a number' })
+  @Min(0, { message: 'Discount price must be greater than or equal to 0' })
+  discountPrice?: number;
 }

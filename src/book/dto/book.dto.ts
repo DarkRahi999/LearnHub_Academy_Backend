@@ -54,10 +54,21 @@ export class CreateBookDto {
 
   @ApiProperty({ 
     example: 29.99, 
-    description: 'Book price in decimal format',
+    description: 'Book regular price in decimal format',
     minimum: 0
   })
   @IsNumber({}, { message: 'Price must be a number' })
   @Min(0, { message: 'Price must be greater than or equal to 0' })
   price!: number;
+
+  @ApiProperty({ 
+    example: 19.99, 
+    description: 'Book discount price in decimal format (optional)',
+    minimum: 0,
+    required: false
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Discount price must be a number' })
+  @Min(0, { message: 'Discount price must be greater than or equal to 0' })
+  discountPrice?: number;
 }

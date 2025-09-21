@@ -27,6 +27,9 @@ export class Book {
   @Property({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   price!: number;
 
+  @Property({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  discountPrice?: number;
+
   @Property({ default: true, nullable: false })
   @Index()
   isActive!: boolean;
