@@ -6,7 +6,7 @@ import { CreateBookDto } from './dto/book.dto';
 import { UpdateBookDto } from './dto/updateBook.dto';
 import { User } from '../auth/entity/user.entity';
 import { Permission, UserRole } from '../utils/enums';
-import { RolePermissionsService } from 'src/auth/role-permissions.service';
+import { RolePermissionsService } from '../auth/role-permissions.service';
 
 @Injectable()
 export class BookService {

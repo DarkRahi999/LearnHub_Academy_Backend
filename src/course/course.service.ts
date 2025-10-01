@@ -6,7 +6,7 @@ import { CreateCourseDto } from './dto/course.dto';
 import { UpdateCourseDto } from './dto/updateCourse.dto';
 import { User } from '../auth/entity/user.entity';
 import { Permission, UserRole } from '../utils/enums';
-import { RolePermissionsService } from 'src/auth/role-permissions.service';
+import { RolePermissionsService } from '../auth/role-permissions.service';
 
 @Injectable()
 export class CourseService {
