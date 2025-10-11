@@ -20,6 +20,9 @@ export class CourseService {
   async createCourse(createCourseDto: CreateCourseDto, userFromJwt: any) {
     const em = this.courseRepository.getEntityManager().fork();
     try {
+      // Log the incoming data for debugging
+      console.log('Received course data:', createCourseDto);
+      
       // Fetch the complete user from database using the JWT user info
       const user = await em.findOne(User, { id: parseInt(userFromJwt.userId) });
       if (!user) {
@@ -40,12 +43,19 @@ export class CourseService {
       if (!createCourseDto.highlight || createCourseDto.highlight.trim().length < 5) {
         throw new BadRequestException('Highlight must be at least 5 characters long');
       }
+      
+      // Validate pointedText - filter out empty items and ensure we have 3-5 non-empty items
+      const nonEmptyPointedText = createCourseDto.pointedText.filter(text => text.trim().length > 0);
+      if (nonEmptyPointedText.length < 3 || nonEmptyPointedText.length > 5) {
+        throw new BadRequestException('Pointed text must contain between 3 and 5 non-empty items');
+      }
 
       // Create the course entity with user reference
       const course = em.create(Course, {
         title: createCourseDto.title.trim(),
         description: createCourseDto.description.trim(),
         highlight: createCourseDto.highlight.trim(),
+        pointedText: nonEmptyPointedText,
         imageUrl: createCourseDto.imageUrl?.trim(),
         price: createCourseDto.price,
         discountPrice: createCourseDto.discountPrice,
@@ -140,6 +150,7 @@ export class CourseService {
         title: course.title,
         description: course.description,
         highlight: course.highlight,
+        pointedText: course.pointedText,
         imageUrl: course.imageUrl,
         price: course.price,
         discountPrice: course.discountPrice,
@@ -180,6 +191,7 @@ export class CourseService {
       title: course.title,
       description: course.description,
       highlight: course.highlight,
+      pointedText: course.pointedText,
       imageUrl: course.imageUrl,
       price: course.price,
       discountPrice: course.discountPrice,
@@ -195,6 +207,8 @@ export class CourseService {
   }
 
   async updateCourse(id: number, updateCourseDto: UpdateCourseDto, user: User): Promise<any> {
+    console.log('Received update course data:', updateCourseDto);
+    
     const course = await this.courseRepository.findOne(
       { id, isActive: true },
       { populate: ['createdBy'] }
@@ -209,6 +223,16 @@ export class CourseService {
       throw new ForbiddenException('You do not have permission to update this course');
     }
 
+    // Validate pointedText if it's being updated
+    if (updateCourseDto.pointedText !== undefined) {
+      const nonEmptyPointedText = updateCourseDto.pointedText.filter(text => text.trim().length > 0);
+      if (nonEmptyPointedText.length < 3 || nonEmptyPointedText.length > 5) {
+        throw new BadRequestException('Pointed text must contain between 3 and 5 non-empty items');
+      }
+      // Update the DTO with filtered values
+      updateCourseDto.pointedText = nonEmptyPointedText;
+    }
+
     this.courseRepository.assign(course, updateCourseDto);
     await this.courseRepository.getEntityManager().flush();
 
@@ -218,6 +242,7 @@ export class CourseService {
       title: course.title,
       description: course.description,
       highlight: course.highlight,
+      pointedText: course.pointedText,
       imageUrl: course.imageUrl,
       price: course.price,
       discountPrice: course.discountPrice,

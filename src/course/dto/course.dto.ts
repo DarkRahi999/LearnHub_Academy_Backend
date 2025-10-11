@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, MinLength, MaxLength, IsOptional, Matches, IsUrl, IsNumber, Min } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength, IsOptional, Matches, IsUrl, IsNumber, Min, IsArray, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCourseDto {
@@ -42,6 +42,25 @@ export class CreateCourseDto {
   @MaxLength(300, { message: 'Highlight must not exceed 300 characters' })
   @Transform(({ value }) => value?.trim())
   highlight!: string;
+
+  @ApiProperty({
+    example: ['Learn HTML basics', 'Master CSS styling', 'Build responsive websites'],
+    description: 'Pointed text items (3-5 items)',
+    type: [String],
+    minItems: 3,
+    maxItems: 5
+  })
+  @IsArray({ message: 'Pointed text must be an array' })
+  @ArrayMinSize(3, { message: 'Pointed text must have at least 3 items' })
+  @ArrayMaxSize(5, { message: 'Pointed text must have at most 5 items' })
+  @IsString({ each: true, message: 'Each pointed text item must be a string' })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value.map((item: string) => item?.trim());
+    }
+    return value;
+  })
+  pointedText!: string[];
 
   @ApiProperty({ 
     example: '/img/courses/web-dev.jpg', 

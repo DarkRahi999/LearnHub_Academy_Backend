@@ -21,6 +21,9 @@ export class Course {
   @Property({ length: 300, columnType: 'varchar(300)', nullable: false })
   highlight!: string;
 
+  @Property({ type: 'json', nullable: false })
+  pointedText!: string[];
+
   @Property({ type: 'text', nullable: true })
   imageUrl?: string;
 
