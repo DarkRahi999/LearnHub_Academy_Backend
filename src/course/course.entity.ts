@@ -4,7 +4,7 @@ import { User } from '../auth/entity/user.entity';
 @Entity({ tableName: 'courses' })
 @Check({ expression: 'LENGTH(title) >= 5 AND LENGTH(title) <= 200', name: 'courses_title_length_check' })
 @Check({ expression: 'LENGTH(description) >= 10', name: 'courses_description_length_check' })
-@Check({ expression: 'LENGTH(highlight) >= 5 AND LENGTH(highlight) <= 300', name: 'courses_highlight_length_check' })
+@Check({ expression: 'LENGTH(highlight) >= 5 AND LENGTH(highlight) <= 50', name: 'courses_highlight_length_check' })
 export class Course {
   [OptionalProps]?: 'createdAt' | 'editedAt';
 
@@ -18,7 +18,7 @@ export class Course {
   @Property({ type: 'text', nullable: false })
   description!: string;
 
-  @Property({ length: 300, columnType: 'varchar(300)', nullable: false })
+  @Property({ length: 50, columnType: 'varchar(50)', nullable: false })
   highlight!: string;
 
   @Property({ type: 'json', nullable: false })

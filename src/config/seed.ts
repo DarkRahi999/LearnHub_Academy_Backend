@@ -10,8 +10,8 @@ import { MikroORM } from '@mikro-orm/postgresql';
 dotenv.config();
 
 // Simple seeding script for development
-export async function runSeeding() {
-  console.log('🌱 Starting database seeding...');
+export async function runSeeding(refresh = true) {
+  console.log(`🌱 Starting database ${refresh ? 'refresh' : 'sync'}...`);
   
   // Validate environment variables
   if (!process.env.DATABASE_URL) {
@@ -28,16 +28,24 @@ export async function runSeeding() {
     orm = await MikroORM.init(mikroOrmConfig);
     console.log('✅ Database connection established');
     
-    // Create schema (fresh installation)
-    console.log('🔧 Creating database schema...');
-    await orm.getSchemaGenerator().ensureDatabase();
-    await orm.getSchemaGenerator().dropSchema();
-    await orm.getSchemaGenerator().createSchema();
-    console.log('✅ Database schema created');
-    
     const em = orm.em.fork();
     
-    // Seed Super Admin
+    if (refresh) {
+      // Create schema (fresh installation) - drops all data
+      console.log('🔧 Creating database schema (refresh mode)...');
+      await orm.getSchemaGenerator().ensureDatabase();
+      await orm.getSchemaGenerator().dropSchema();
+      await orm.getSchemaGenerator().createSchema();
+      console.log('✅ Database schema created');
+    } else {
+      // Update schema (sync mode) - preserves existing data
+      console.log('🔄 Syncing database schema (sync mode)...');
+      await orm.getSchemaGenerator().ensureDatabase();
+      await orm.getSchemaGenerator().updateSchema();
+      console.log('✅ Database schema synced');
+    }
+    
+    // Seed Super Admin (only if not exists)
     let superAdmin = await em.findOne(User, { email: 'superadmin@example.com' });
     if (!superAdmin) {
       const hashedPassword = await bcrypt.hash('SuperAdmin123!', 12);
@@ -58,7 +66,7 @@ export async function runSeeding() {
       console.log('ℹ️ Super Admin user already exists');
     }
     
-    // Seed Regular Admin
+    // Seed Regular Admin (only if not exists)
     let admin = await em.findOne(User, { email: 'admin@example.com' });
     if (!admin) {
       const hashedPassword = await bcrypt.hash('Admin123!', 12);
@@ -79,7 +87,7 @@ export async function runSeeding() {
       console.log('ℹ️ Admin user already exists');
     }
     
-    // Seed System Settings
+    // Seed System Settings (only if not exist)
     console.log('⚙️ Seeding system settings...');
     const defaultSettings = [
       {
@@ -148,11 +156,13 @@ export async function runSeeding() {
     await em.flush();
     console.log('✅ System settings seeding completed');
     
-    console.log('🎉 Database seeding completed successfully!');
-    console.log('');
-    console.log('📋 Default Users Created:');
-    console.log('👤 Super Admin - Email: superadmin@example.com, Password: SuperAdmin123!');
-    console.log('👤 Admin - Email: admin@example.com, Password: Admin123!');
+    console.log(`🎉 Database ${refresh ? 'refresh' : 'sync'} completed successfully!`);
+    if (refresh) {
+      console.log('');
+      console.log('📋 Default Users Created:');
+      console.log('👤 Super Admin - Email: superadmin@example.com, Password: SuperAdmin123!');
+      console.log('👤 Admin - Email: admin@example.com, Password: Admin123!');
+    }
     
   } catch (error) {
     console.error('❌ Error during seeding:');
@@ -180,13 +190,17 @@ export async function runSeeding() {
 
 // Run seeding if this file is executed directly
 if (require.main === module) {
-  runSeeding()
+  // Check for command line arguments
+  const args = process.argv.slice(2);
+  const syncMode = args.includes('--sync') || args.includes('-s');
+  
+  runSeeding(!syncMode) // Default to refresh mode, unless --sync flag is provided
     .then(() => {
-      console.log('✅ Seeding script completed');
+      console.log(`✅ ${syncMode ? 'Sync' : 'Refresh'} script completed`);
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Seeding script failed:', error);
+      console.error(`❌ ${syncMode ? 'Sync' : 'Refresh'} script failed:`, error);
       process.exit(1);
     });
 }

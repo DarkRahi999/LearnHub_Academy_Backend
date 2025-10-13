@@ -31,15 +31,15 @@ export class CreateCourseDto {
   description!: string;
 
   @ApiProperty({ 
-    example: 'Perfect for beginners who want to start their web development journey', 
-    description: 'Course highlight (5-300 characters)',
+    example: 'Perfect for beginners', 
+    description: 'Course highlight (5-50 characters)',
     minLength: 5,
-    maxLength: 300
+    maxLength: 50
   })
   @IsString({ message: 'Highlight must be a string' })
   @IsNotEmpty({ message: 'Highlight is required' })
   @MinLength(5, { message: 'Highlight must be at least 5 characters long' })
-  @MaxLength(300, { message: 'Highlight must not exceed 300 characters' })
+  @MaxLength(50, { message: 'Highlight must not exceed 50 characters' })
   @Transform(({ value }) => value?.trim())
   highlight!: string;
 
