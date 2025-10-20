@@ -33,10 +33,16 @@ export class AuthService {
       throw new BadRequestException('You must accept terms and conditions');
     }
 
-    const uniqueChecks: any[] = [{ email: data.email }, { phone: data.phone }];
-    const existing = await this.userRepo.findOne({ $or: uniqueChecks });
-    if (existing) { 
-      throw new BadRequestException('Email or phone already exists');
+    // Check for existing email
+    const existingEmail = await this.userRepo.findOne({ email: data.email });
+    if (existingEmail) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    // Check for existing phone
+    const existingPhone = await this.userRepo.findOne({ phone: data.phone });
+    if (existingPhone) {
+      throw new BadRequestException('Phone number already exists');
     }
 
     const passwordHash = await bcrypt.hash(data.password, 10);
@@ -615,8 +621,8 @@ export class AuthService {
   // Admin creates user with role assignment
   async createUser(data: CreateUserDto, createdByUserId: string) {
     // Check if email already exists
-    const existingUser = await this.userRepo.findOne({ email: data.email });
-    if (existingUser) {
+    const existingEmail = await this.userRepo.findOne({ email: data.email });
+    if (existingEmail) {
       throw new BadRequestException('Email already exists');
     }
 
