@@ -8,6 +8,8 @@ import { CreateNoticeDto } from './dto/create-notice.dto';
 import { UpdateNoticeDto } from './dto/update-notice.dto';
 import { RolePermissionsService } from '../auth/role-permissions.service';
 import { UserRole, Permission } from '../utils/enums';
+import * as nodemailer from 'nodemailer';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NoticeService {
@@ -18,6 +20,7 @@ export class NoticeService {
     @InjectRepository(NoticeRead) private readonly noticeReadRepo: EntityRepository<NoticeRead>,
     @InjectRepository(User) private readonly userRepo: EntityRepository<User>,
     private readonly rolePermissionsService: RolePermissionsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createNotice(createNoticeDto: CreateNoticeDto, userFromJwt: any) {
@@ -57,6 +60,9 @@ export class NoticeService {
       
       // Reload with relations for response
       const savedNotice = await em.findOne(Notice, { id: notice.id }, { populate: ['createdBy'] });
+      
+      // Send email notifications to users who have email notifications enabled
+      await this.sendNoticeEmailNotifications(savedNotice!);
       
       this.logger.log(`Notice created successfully with ID: ${notice.id}`);
       return this.sanitize(savedNotice!);
@@ -483,5 +489,122 @@ export class NoticeService {
         role: createdBy.role,
       } : null
     };
+  }
+
+  private async sendNoticeEmailNotifications(notice: Notice) {
+    try {
+      // Get all users who have email notifications enabled
+      const users = await this.userRepo.find({ emailNoticeEnabled: true });
+      
+      // Send email to each user
+      for (const user of users) {
+        // Skip sending email to the user who created the notice
+        if (user.id === notice.createdBy.id) {
+          continue;
+        }
+        
+        try {
+          await this.sendMail(
+            user.email,
+            `New Notice: ${notice.subHeading}`,
+            `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+              <!-- Header -->
+              <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #4F46E5;">
+                <h1 style="color: #4F46E5; font-size: 24px; font-weight: bold; margin: 0;">LearnHub Academy</h1>
+                <p style="color: #6B7280; font-size: 12px; margin: 4px 0 0;">Your Learning Platform</p>
+              </div>
+
+              <!-- Content -->
+              <div style="padding-top: 12px; padding-bottom: 12px;">
+                <h2 style="color: #1F2937; font-size: 20px; font-weight: bold;">New Notice Posted</h2>
+                <p style="margin-top: 12px;">Hello ${user.firstName || 'User'},</p>
+                <p style="margin-top: 8px; font-size: 14px;">A new notice has been posted on LearnHub Academy:</p>
+
+                <div style="background-color: #F9FAFB; padding: 16px; border-radius: 8px; margin: 24px 0;">
+                  <h3 style="color: #1F2937; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${notice.subHeading}</h3>
+                  <p style="color: #6B7280; margin: 0; line-height: 1.5;">${notice.description}</p>
+                  <p style="color: #6B7280; font-size: 12px; margin: 8px 0 0 0;">
+                    Posted by: ${notice.createdBy.firstName} ${notice.createdBy.lastName || ''} on ${new Date(notice.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <p style="margin-top: 16px;">
+                  Please <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/notices" style="color: #4F46E5; text-decoration: none; font-weight: bold;">log in to your account</a> to view the full notice.
+                </p>
+
+                <p style="margin-top: 16px;">Thank you for using LearnHub Academy!</p>
+              </div>
+
+              <!-- Footer -->
+              <div style="padding-top: 20px; padding-bottom: 20px; border-top: 1px solid #E5E7EB; text-align: center; color: #9CA3AF; font-size: 14px;">
+                <p>© 2025 LearnHub Academy. All rights reserved.</p>
+                <p style="font-size: 12px; margin-top: 4px;">
+                  You received this email because you have enabled email notifications for notices. 
+                  <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/profile/update" style="color: #4F46E5; text-decoration: none;">Manage your notification preferences</a>
+                </p>
+              </div>
+            </div>`
+          );
+        } catch (emailError) {
+          this.logger.error(`Failed to send email to ${user.email}: ${emailError.message}`, emailError.stack);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error sending notice email notifications: ${error.message}`, error.stack);
+    }
+  }
+
+  private async sendMail(to: string, subject: string, html: string) {
+    try {
+      // Use ConfigService to get environment variables with fallbacks
+      const userEmail = this.configService.get<string>('MAIL_USER') || 'usera2lite789@gmail.com';
+      const appPassword = this.configService.get<string>('MAIL_PASS') || 'digkzlwkzvrxtsab'; // Your working password
+
+      // Validate credentials
+      if (!userEmail || !appPassword) {
+        throw new Error('Email credentials are missing');
+      }
+
+      // Ensure credentials are strings and not empty
+      const user = String(userEmail).trim();
+      const pass = String(appPassword).trim();
+
+      if (!user || !pass) {
+        throw new Error('Email credentials are invalid or empty');
+      }
+
+      // Gmail configuration with explicit SMTP settings
+      const transporter = nodemailer.createTransport({
+        host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
+        port: this.configService.get<number>('MAIL_PORT') || 587,
+        secure: this.configService.get<string>('MAIL_SECURE') === 'true',
+        auth: {
+          user: user,
+          pass: pass
+        },
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"LearnHub Academy" <${user}>`,
+        to,
+        subject,
+        html,
+      });
+    } catch (error) {
+      // Provide specific error messages based on the error type
+      if (error.message.includes('Missing credentials')) {
+        throw new BadRequestException('Email configuration error: Missing or invalid credentials.');
+      }
+
+      if (error.message.includes('BadCredentials') || error.message.includes('Invalid login')) {
+        throw new BadRequestException('Email authentication failed. Please check: 1) App Password is correct, 2) 2-Factor Authentication is enabled.');
+      }
+
+      // Generic error message
+      throw new BadRequestException('Failed to send email. Please try again. Error: ' + error.message);
+    }
   }
 }

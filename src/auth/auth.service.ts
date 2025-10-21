@@ -193,6 +193,7 @@ export class AuthService {
       nationality?: string;
       religion?: string;
       avatarUrl?: string;
+      emailNoticeEnabled?: boolean;
     },
   ) {
     const user = await this.userRepo.findOne({ id: Number(userId) });
@@ -232,6 +233,7 @@ export class AuthService {
     if (typeof data.nationality !== 'undefined') user.nationality = data.nationality as any;
     if (typeof data.religion !== 'undefined') user.religion = data.religion as any;
     if (typeof data.avatarUrl !== 'undefined') user.avatarUrl = data.avatarUrl as any;
+    if (typeof data.emailNoticeEnabled !== 'undefined') user.emailNoticeEnabled = data.emailNoticeEnabled as any;
 
     await this.userRepo.getEntityManager().persistAndFlush(user);
     return { user: this.sanitize(user) };

@@ -48,6 +48,9 @@ export class User {
   @Property({ default: false })
   isBlocked?: boolean;
 
+  @Property({ default: true })
+  emailNoticeEnabled?: boolean;
+
   @Property({ type: Date, nullable: true })
   lastLoginAt?: Date;
 
@@ -57,4 +60,3 @@ export class User {
   @Property({ onCreate: () => new Date(), onUpdate: () => new Date() })
   updatedAt: Date = new Date();
 }
-

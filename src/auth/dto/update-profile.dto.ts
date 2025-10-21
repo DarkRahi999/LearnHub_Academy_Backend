@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, IsBoolean } from 'class-validator';
 import { Gender } from '../../utils/enums';
 
 export class UpdateProfileDto {
@@ -47,6 +47,9 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Enable/disable email notifications for notices' })
+  @IsOptional()
+  @IsBoolean()
+  emailNoticeEnabled?: boolean;
 }
-
-
