@@ -8,6 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateSuperAdminDto } from './dto/create-super-admin.dto';
 import { UserRole, Permission } from '../utils/enums';
@@ -65,6 +66,12 @@ export class AuthController {
   @ApiBody({ type: ForgotPasswordDto })
   async forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body);
+  }
+
+  @Post('verify-otp')
+  @ApiBody({ type: VerifyOtpDto })
+  async verifyOtp(@Body() body: VerifyOtpDto) {
+    return this.authService.verifyOtp(body);
   }
 
   @Post('reset-password')

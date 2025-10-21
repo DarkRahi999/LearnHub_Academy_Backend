@@ -14,15 +14,17 @@ import { Gender, UserRole } from '../utils/enums';
 import * as bcrypt from 'bcryptjs';
 import { RolePermissionsService } from './role-permissions.service';
 import { CreateSuperAdminDto } from './dto/create-super-admin.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     @InjectRepository(User) private readonly userRepo: EntityRepository<User>,
     @InjectRepository(OtpCode) private readonly otpRepo: EntityRepository<OtpCode>,
     private readonly rolePermissionsService: RolePermissionsService,
-  ) {}
+  ) { }
 
   async signPayload<T extends object>(payload: T): Promise<string> {
     return this.jwtService.signAsync(payload);
@@ -47,7 +49,7 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(data.password, 10);
 
-    
+
     const user = this.userRepo.create({
       email: data.email,
       phone: data.phone,
@@ -63,10 +65,10 @@ export class AuthService {
       passwordHash,
     });
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    const token = await this.signPayload({ 
-      sub: String(user.id), 
-      email: user.email, 
-      role: user.role 
+    const token = await this.signPayload({
+      sub: String(user.id),
+      email: user.email,
+      role: user.role
     });
     return { user: this.sanitize(user), access_token: token };
   }
@@ -76,25 +78,25 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
     // Check if user is blocked
     if (user.isBlocked) {
       throw new UnauthorizedException('Your account has been blocked. Please contact admin.');
     }
-    
+
     const ok = await bcrypt.compare(data.password, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
     // Update last login timestamp
     user.lastLoginAt = new Date();
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    
-    const token = await this.signPayload({ 
-      sub: String(user.id), 
-      email: user.email, 
-      role: user.role 
+
+    const token = await this.signPayload({
+      sub: String(user.id),
+      email: user.email,
+      role: user.role
     });
     return { user: this.sanitize(user), access_token: token };
   }
@@ -105,26 +107,55 @@ export class AuthService {
 
   private async sendMail(to: string, subject: string, html: string) {
     try {
+      // Use ConfigService to get environment variables with fallbacks
+      const userEmail = this.configService.get<string>('MAIL_USER') || 'usera2lite789@gmail.com';
+      const appPassword = this.configService.get<string>('MAIL_PASS') || 'digkzlwkzvrxtsab'; // Your working password
+
+      // Validate credentials
+      if (!userEmail || !appPassword) {
+        throw new Error('Email credentials are missing');
+      }
+
+      // Ensure credentials are strings and not empty
+      const user = String(userEmail).trim();
+      const pass = String(appPassword).trim();
+
+      if (!user || !pass) {
+        throw new Error('Email credentials are invalid or empty');
+      }
+
+      // Gmail configuration with explicit SMTP settings
       const transporter = nodemailer.createTransport({
-        service: process.env.MAIL_SERVICE || undefined,
-        host: process.env.MAIL_HOST || undefined,
-        port: process.env.MAIL_PORT ? Number(process.env.MAIL_PORT) : undefined,
-        secure: (process.env.MAIL_SECURE || 'false') === 'true',
+        host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
+        port: this.configService.get<number>('MAIL_PORT') || 587,
+        secure: this.configService.get<string>('MAIL_SECURE') === 'true',
         auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASS,
+          user: user,
+          pass: pass
         },
-      } as any);
-      
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
       await transporter.sendMail({
-        from: process.env.MAIL_FROM,
+        from: `"LearnHub Academy" <${user}>`,
         to,
         subject,
         html,
       });
     } catch (error) {
-      // Email sending failed, but don't log sensitive details
-      throw new BadRequestException('Failed to send OTP email. Please try again.');
+      // Provide specific error messages based on the error type
+      if (error.message.includes('Missing credentials')) {
+        throw new BadRequestException('Email configuration error: Missing or invalid credentials.');
+      }
+
+      if (error.message.includes('BadCredentials') || error.message.includes('Invalid login')) {
+        throw new BadRequestException('Email authentication failed. Please check: 1) App Password is correct, 2) 2-Factor Authentication is enabled.');
+      }
+
+      // Generic error message
+      throw new BadRequestException('Failed to send OTP email. Please try again. Error: ' + error.message);
     }
   }
 
@@ -217,7 +248,7 @@ export class AuthService {
       { email, createdAt: { $gte: new Date(Date.now() - 60 * 1000) } }, // Last 1 minute
       { orderBy: { createdAt: 'DESC' } }
     );
-    
+
     if (recentOtp) {
       throw new BadRequestException('Please wait 1 minute before requesting another OTP');
     }
@@ -231,24 +262,87 @@ export class AuthService {
 
     const code = this.generateOtpCode();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    const otp = this.otpRepo.create({ 
-      email, 
-      code, 
-      expiresAt, 
-      attempts: 0, 
+    const otp = this.otpRepo.create({
+      email,
+      code,
+      expiresAt,
+      attempts: 0,
       consumed: false,
       createdAt: new Date()
     });
     await this.otpRepo.getEntityManager().persistAndFlush(otp);
-    
+
     // Send email with proper error handling
     await this.sendMail(
-      email, 
-      'Password Reset OTP', 
-      `<p>Your password reset OTP is <b>${code}</b>. It expires in 5 minutes.</p><p>If you didn't request this, please ignore this email.</p>`
+      email,
+      'Password Reset OTP - LearnHub Academy',
+      `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+        <!-- Header -->
+        <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #4F46E5;">
+          <h1 style="color: #4F46E5; font-size: 24px; font-weight: bold; margin: 0;">LearnHub Academy</h1>
+          <p style="color: #6B7280; font-size: 12px; margin: 4px 0 0;">Your Learning Platform</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding-top: 12px; padding-bottom: 12px;">
+          <h2 style="color: #1F2937; font-size: 20px; font-weight: bold;">Password Reset Request</h2>
+          <p style="margin-top: 12px;">Hello,</p>
+          <p style="margin-top: 8px; font-size: 14px;">We received a request to reset your password. Use the following OTP code to complete the process:</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <span style="font-size: 36px; font-weight: bold; color: #000000; letter-spacing: 0.2em; padding-bottom: 8px; border-bottom: 2px dashed #4F46E5; display: inline-block;">
+              ${code}
+            </span>
+          </div>
+
+          <p style="background-color: #FEE2E2; padding: 16px; border-left: 4px solid #EF4444; border-radius: 4px;">
+            <strong>Note:</strong> This OTP will expire in 5 minutes. If you didn't request this password reset, please ignore this email.
+          </p>
+
+          <p style="margin-top: 16px;">Thank you for using LearnHub Academy!</p>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding-top: 20px; padding-bottom: 20px; border-top: 1px solid #E5E7EB; text-align: center; color: #9CA3AF; font-size: 14px;">
+          <p>© 2025 LearnHub Academy. All rights reserved.</p>
+        </div>
+      </div>`
     );
-    
-    return { message: 'Password reset OTP sent successfully to your email' };
+
+    return { message: 'Password reset OTP sent successfully to your email. Please check your inbox (and spam folder) for the 6-digit code.' };
+  }
+
+  async verifyOtp({ email, otp }: { email: string, otp: string }) {
+    // Find the OTP
+    const existing = await this.otpRepo.findOne({ email, consumed: false }, { orderBy: { createdAt: 'DESC' } });
+    if (!existing) {
+      throw new UnauthorizedException('OTP not found or already used');
+    }
+
+    // Check if OTP is expired
+    if (existing.expiresAt.getTime() < Date.now()) {
+      existing.consumed = true; // Mark expired OTP as consumed
+      await this.otpRepo.getEntityManager().persistAndFlush(existing);
+      throw new UnauthorizedException('OTP expired. Please request a new one.');
+    }
+
+    // Verify OTP code
+    if (existing.code !== otp) {
+      existing.attempts += 1;
+      await this.otpRepo.getEntityManager().persistAndFlush(existing);
+
+      // Block OTP after 3 failed attempts
+      if (existing.attempts >= 3) {
+        existing.consumed = true;
+        await this.otpRepo.getEntityManager().persistAndFlush(existing);
+        throw new UnauthorizedException('Too many failed attempts. Please request a new OTP.');
+      }
+
+      throw new UnauthorizedException(`Invalid OTP. ${3 - existing.attempts} attempts remaining.`);
+    }
+
+    // OTP is valid - don't consume it yet as it will be used for password reset
+    return { message: 'OTP verified successfully' };
   }
 
   async resetPassword({ email, otp, newPassword, confirmPassword }: ResetPasswordDto) {
@@ -262,44 +356,44 @@ export class AuthService {
     if (!existing) {
       throw new UnauthorizedException('OTP not found or already used');
     }
-    
+
     // Check if OTP is expired
     if (existing.expiresAt.getTime() < Date.now()) {
       existing.consumed = true; // Mark expired OTP as consumed
       await this.otpRepo.getEntityManager().persistAndFlush(existing);
       throw new UnauthorizedException('OTP expired. Please request a new one.');
     }
-    
+
     // Verify OTP code
     if (existing.code !== otp) {
       existing.attempts += 1;
       await this.otpRepo.getEntityManager().persistAndFlush(existing);
-      
+
       // Block OTP after 3 failed attempts
       if (existing.attempts >= 3) {
         existing.consumed = true;
         await this.otpRepo.getEntityManager().persistAndFlush(existing);
         throw new UnauthorizedException('Too many failed attempts. Please request a new OTP.');
       }
-      
+
       throw new UnauthorizedException(`Invalid OTP. ${3 - existing.attempts} attempts remaining.`);
     }
-    
+
     // Mark OTP as consumed
     existing.consumed = true;
     await this.otpRepo.getEntityManager().persistAndFlush(existing);
-    
+
     // Find user and update password
     const user = await this.userRepo.findOne({ email });
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    
+
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
     user.passwordHash = passwordHash;
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    
+
     return { message: 'Password updated successfully' };
   }
 
@@ -307,9 +401,9 @@ export class AuthService {
   async getAllUsers(params: { search?: string; role?: UserRole; page?: number; limit?: number } = {}) {
     const { search, role, page = 1, limit = 10 } = params;
     const offset = (page - 1) * limit;
-    
+
     const where: any = {};
-    
+
     if (search) {
       where.$or = [
         { firstName: { $ilike: `%${search}%` } },
@@ -318,17 +412,17 @@ export class AuthService {
         { phone: { $ilike: `%${search}%` } }
       ];
     }
-    
+
     if (role) {
       where.role = role;
     }
-    
+
     const [users, total] = await this.userRepo.findAndCount(where, {
       offset,
       limit,
       orderBy: { createdAt: 'DESC' }
     });
-    
+
     return {
       users: users.map(user => this.sanitize(user)),
       pagination: {
@@ -440,7 +534,7 @@ export class AuthService {
 
     user.isBlocked = isBlocked;
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    
+
     const action = isBlocked ? 'blocked' : 'unblocked';
     return { user: this.sanitize(user), message: `User ${action} successfully` };
   }
@@ -472,7 +566,7 @@ export class AuthService {
 
   async bulkUserAction(userIds: string[], action: 'delete' | 'block' | 'unblock' | 'role_change', currentUser: any, newRole?: UserRole) {
     const users = await this.userRepo.find({ id: { $in: userIds.map(id => Number(id)) } });
-    
+
     if (users.length === 0) {
       throw new BadRequestException('No users found');
     }
@@ -529,7 +623,7 @@ export class AuthService {
             await this.userRepo.getEntityManager().persistAndFlush(user);
             break;
         }
-        
+
         results.success++;
       } catch (error) {
         results.failed++;
@@ -548,20 +642,20 @@ export class AuthService {
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       return true;
     }
-    
+
     // Admin can manage users but not other admins or super admins
     if (currentUser.role === UserRole.ADMIN) {
       return targetUser.role === UserRole.USER;
     }
-    
+
     return false;
   }
 
   async getUserPermissions(userRole: UserRole) {
     const permissions = this.rolePermissionsService.getUserPermissions(userRole);
-    return { 
-      role: userRole, 
-      permissions 
+    return {
+      role: userRole,
+      permissions
     };
   }
 
@@ -605,14 +699,14 @@ export class AuthService {
     });
 
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    const token = await this.signPayload({ 
-      sub: String(user.id), 
-      email: user.email, 
-      role: user.role 
+    const token = await this.signPayload({
+      sub: String(user.id),
+      email: user.email,
+      role: user.role
     });
-    
-    return { 
-      user: this.sanitize(user), 
+
+    return {
+      user: this.sanitize(user),
       access_token: token,
       message: 'Super Admin created successfully'
     };
@@ -651,8 +745,8 @@ export class AuthService {
     });
 
     await this.userRepo.getEntityManager().persistAndFlush(user);
-    
-    return { 
+
+    return {
       user: this.sanitize(user),
       message: 'User created successfully'
     };
