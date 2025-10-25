@@ -7,13 +7,20 @@ import { NoticeRead } from '../notice/notice-read.entity';
 import { SystemSetting } from '../system-settings/entity/system-setting.entity';
 import { Course } from '../course/course.entity';
 import { Book } from '../book/book.entity';
+import { Setting } from '../auth/entity/base.entity';
+import { ExamCourse } from '../question/entity/course.entity';
+import { Group } from '../question/entity/group.entity';
+import { Chapter } from '../question/entity/chapter.entity';
+import { SubChapter } from '../question/entity/subchapter.entity';
+import { Question } from '../question/entity/question.entity';
+import { Subject } from '../question/entity/subject.entity';
 
 dotenv.config();
 
 export default defineConfig({
   driver: PostgreSqlDriver,
   clientUrl: process.env.DATABASE_URL,
-  entities: [User, OtpCode, Notice, NoticeRead, SystemSetting, Course, Book],
+  entities: [User, Setting, OtpCode, Notice, NoticeRead, SystemSetting, Course, Book, ExamCourse, Group, Subject, Chapter, SubChapter, Question],
   debug: false,
   allowGlobalContext: true,
   pool: {
