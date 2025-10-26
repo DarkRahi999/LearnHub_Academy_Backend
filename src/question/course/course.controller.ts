@@ -4,8 +4,8 @@ import { CourseService } from './course.service';
 import { CourseRes, CreateCourseDto, UpdateCourseDto } from '../dto/course.dto';
 import { ExamCourse } from '../entity/course.entity';
 
-@ApiTags('courses')
-@Controller('courses')
+@ApiTags('ExamCourses')
+@Controller('examCourses')
 export class CourseController {
   constructor(private readonly courseService: CourseService) {}
 
