@@ -14,6 +14,7 @@ import { MikroORM } from '@mikro-orm/core';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { QuestionManagementModule } from './question/question.module';
+import { ExamModule } from './exam/exam.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { QuestionManagementModule } from './question/question.module';
     BookModule,
     CloudinaryModule,
     QuestionManagementModule,
+    ExamModule,
   ],
   controllers: [AppController],
   providers: [

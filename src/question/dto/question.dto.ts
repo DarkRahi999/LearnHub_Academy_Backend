@@ -2,10 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsInt } from 'class-validator';
 
 export class CreateQuestionDto {
-  @ApiProperty({ example: 'Newton\'s First Law Question', description: 'The name of the question' })
-  @IsString()
-  name: string;
-
   @ApiProperty({ example: 1, description: 'The ID of the course' })
   @IsInt()
   courseId: number;
@@ -54,14 +50,14 @@ export class CreateQuestionDto {
   @IsString()
   @IsOptional()
   description?: string;
+  
+  @ApiPropertyOptional({ example: 'HSC 2020, Dhaka Board', description: 'Information about when this question previously appeared' })
+  @IsString()
+  @IsOptional()
+  previousYearInfo?: string;
 }
 
 export class UpdateQuestionDto {
-  @ApiPropertyOptional({ example: 'Advanced Newton\'s First Law Question', description: 'The name of the question' })
-  @IsString()
-  @IsOptional()
-  name?: string;
-
   @ApiPropertyOptional({ example: 1, description: 'The ID of the course' })
   @IsInt()
   @IsOptional()
@@ -121,14 +117,16 @@ export class UpdateQuestionDto {
   @IsString()
   @IsOptional()
   description?: string;
+  
+  @ApiPropertyOptional({ example: 'HSC 2020, Dhaka Board', description: 'Information about when this question previously appeared' })
+  @IsString()
+  @IsOptional()
+  previousYearInfo?: string;
 }
 
 export class QuestionRes {
   @ApiProperty()
   id: number;
-
-  @ApiProperty({ example: 'Newton\'s First Law Question', description: 'The name of the question' })
-  name: string;
 
   @ApiProperty({ example: 1, description: 'The ID of the course' })
   courseId: number;
@@ -165,6 +163,9 @@ export class QuestionRes {
 
   @ApiPropertyOptional({ example: 'This question tests understanding of Newton\'s first law', description: 'The description of the question' })
   description?: string;
+  
+  @ApiPropertyOptional({ example: 'HSC 2020, Dhaka Board', description: 'Information about when this question previously appeared' })
+  previousYearInfo?: string;
 
   @ApiProperty()
   createdAt: Date;

@@ -87,120 +87,77 @@ export async function runSeeding(refresh = true) {
       console.log('ℹ️ Admin user already exists');
     }
     
-    // Seed System Settings (only if not exist)
-    console.log('⚙️ Seeding system settings...');
-    const defaultSettings = [
-      {
-        key: 'app_name',
-        value: 'LearnHub Academy',
-        type: SettingType.STRING,
-        category: SettingCategory.GENERAL,
-        name: 'Application Name',
-        description: 'The name displayed across the application',
-        isPublic: true,
-        isEditable: true,
-      },
-      {
-        key: 'app_description',
-        value: 'A comprehensive learning management system',
-        type: SettingType.STRING,
-        category: SettingCategory.GENERAL,
-        name: 'Application Description',
-        description: 'Brief description of the application',
-        isPublic: true,
-        isEditable: true,
-      },
-      {
-        key: 'max_login_attempts',
-        value: '5',
-        type: SettingType.NUMBER,
-        category: SettingCategory.SECURITY,
-        name: 'Maximum Login Attempts',
-        description: 'Maximum number of failed login attempts before account lockout',
-        isPublic: false,
-        isEditable: true,
-      },
-      {
-        key: 'maintenance_mode',
-        value: 'false',
-        type: SettingType.BOOLEAN,
-        category: SettingCategory.MAINTENANCE,
-        name: 'Maintenance Mode',
-        description: 'Enable/disable maintenance mode',
-        isPublic: false,
-        isEditable: true,
-      },
-      {
-        key: 'email_notifications',
-        value: 'true',
-        type: SettingType.BOOLEAN,
-        category: SettingCategory.EMAIL,
-        name: 'Email Notifications',
-        description: 'Enable/disable email notifications',
-        isPublic: false,
-        isEditable: true,
-      },
-    ];
-    
-    for (const settingData of defaultSettings) {
-      const existingSetting = await em.findOne(SystemSetting, { key: settingData.key });
-      if (!existingSetting) {
+    // Seed System Settings (only if not exists)
+    let systemSettings = await em.findOne(SystemSetting, { key: 'app_name' });
+    if (!systemSettings) {
+      const settings = [
+        { 
+          key: 'app_name', 
+          value: 'LearnHub Academy', 
+          oldValue: null, 
+          type: SettingType.STRING, 
+          category: SettingCategory.GENERAL,
+          name: 'Application Name',
+          isPublic: true,
+          isEditable: true
+        },
+        { 
+          key: 'app_description', 
+          value: 'Online Learning Platform', 
+          oldValue: null, 
+          type: SettingType.STRING, 
+          category: SettingCategory.GENERAL,
+          name: 'Application Description',
+          isPublic: true,
+          isEditable: true
+        },
+        { 
+          key: 'contact_email', 
+          value: 'support@learnhub.com', 
+          oldValue: null, 
+          type: SettingType.STRING, 
+          category: SettingCategory.GENERAL,
+          name: 'Contact Email',
+          isPublic: true,
+          isEditable: true
+        },
+        { 
+          key: 'contact_phone', 
+          value: '+1234567890', 
+          oldValue: null, 
+          type: SettingType.STRING, 
+          category: SettingCategory.GENERAL,
+          name: 'Contact Phone',
+          isPublic: true,
+          isEditable: true
+        },
+      ];
+      
+      for (const settingData of settings) {
         const setting = em.create(SystemSetting, settingData);
-        em.persist(setting);
-        console.log(`✅ System setting created: ${settingData.key}`);
-      } else {
-        console.log(`ℹ️ System setting already exists: ${settingData.key}`);
+        await em.persist(setting);
       }
-    }
-    
-    await em.flush();
-    console.log('✅ System settings seeding completed');
-    
-    console.log(`🎉 Database ${refresh ? 'refresh' : 'sync'} completed successfully!`);
-    if (refresh) {
-      console.log('');
-      console.log('📋 Default Users Created:');
-      console.log('👤 Super Admin - Email: superadmin@example.com, Password: SuperAdmin123!');
-      console.log('👤 Admin - Email: admin@example.com, Password: Admin123!');
-    }
-    
-  } catch (error) {
-    console.error('❌ Error during seeding:');
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      if (error.message.includes('ECONNREFUSED')) {
-        console.error('📛 Database connection refused. Please ensure PostgreSQL is running.');
-      } else if (error.message.includes('authentication failed')) {
-        console.error('🔑 Database authentication failed. Check your credentials.');
-      } else if (error.message.includes('database') && error.message.includes('does not exist')) {
-        console.error('💾 Database does not exist. Please create the database first.');
-      }
+      
+      await em.flush();
+      console.log('✅ System settings created');
     } else {
-      console.error('Unknown error:', error);
+      console.log('ℹ️ System settings already exist');
     }
+    
+    console.log('✅ Seeding completed successfully');
+  } catch (error) {
+    console.error('❌ Seeding failed:', error);
     throw error;
   } finally {
     if (orm) {
-      console.log('🔌 Closing database connection...');
       await orm.close();
-      console.log('✅ Database connection closed');
+      console.log('🔒 Database connection closed');
     }
   }
 }
 
 // Run seeding if this file is executed directly
 if (require.main === module) {
-  // Check for command line arguments
-  const args = process.argv.slice(2);
-  const syncMode = args.includes('--sync') || args.includes('-s');
-  
-  runSeeding(!syncMode) // Default to refresh mode, unless --sync flag is provided
-    .then(() => {
-      console.log(`✅ ${syncMode ? 'Sync' : 'Refresh'} script completed`);
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error(`❌ ${syncMode ? 'Sync' : 'Refresh'} script failed:`, error);
-      process.exit(1);
-    });
+  const refresh = process.argv.includes('--refresh');
+  runSeeding(refresh).catch(console.error);
 }

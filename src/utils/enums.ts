@@ -31,6 +31,9 @@ export enum Permission {
   CREATE_BOOK = 'create_book',
   UPDATE_BOOK = 'update_book',
   DELETE_BOOK = 'delete_book',
+  CREATE_EXAM = 'create_exam',
+  UPDATE_EXAM = 'update_exam',
+  DELETE_EXAM = 'delete_exam',
   
   // Super Admin permissions
   CREATE_POST = 'create_post',

@@ -28,6 +28,9 @@ export class RolePermissionsService {
       Permission.CREATE_BOOK,
       Permission.UPDATE_BOOK,
       Permission.DELETE_BOOK,
+      Permission.CREATE_EXAM,
+      Permission.UPDATE_EXAM,
+      Permission.DELETE_EXAM,
     ],
     [UserRole.SUPER_ADMIN]: [
       Permission.VIEW_PROFILE,
@@ -50,6 +53,9 @@ export class RolePermissionsService {
       Permission.CREATE_BOOK,
       Permission.UPDATE_BOOK,
       Permission.DELETE_BOOK,
+      Permission.CREATE_EXAM,
+      Permission.UPDATE_EXAM,
+      Permission.DELETE_EXAM,
     ],
   };
 

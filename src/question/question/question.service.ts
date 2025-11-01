@@ -16,7 +16,6 @@ export class QuestionService {
 
     // Create the question entity with all required fields
     const questionData = {
-      name: createQuestionDto.name,
       subChapter: subChapter,
       questionText: createQuestionDto.questionText,
       optionA: createQuestionDto.optionA,
@@ -25,6 +24,7 @@ export class QuestionService {
       optionD: createQuestionDto.optionD,
       correctAnswer: createQuestionDto.correctAnswer,
       description: createQuestionDto.description,
+      previousYearInfo: createQuestionDto.previousYearInfo,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -40,7 +40,6 @@ export class QuestionService {
     // Transform questions to ensure they have subChapterId property
     return questions.map(question => ({
       id: question.id,
-      name: question.name,
       questionText: question.questionText,
       optionA: question.optionA,
       optionB: question.optionB,
@@ -48,6 +47,7 @@ export class QuestionService {
       optionD: question.optionD,
       correctAnswer: question.correctAnswer,
       description: question.description,
+      previousYearInfo: question.previousYearInfo,
       subChapterId: question.subChapter.id,
       createdAt: question.createdAt,
       updatedAt: question.updatedAt
@@ -60,7 +60,6 @@ export class QuestionService {
       // Transform question to ensure it has subChapterId property
       return {
         id: question.id,
-        name: question.name,
         questionText: question.questionText,
         optionA: question.optionA,
         optionB: question.optionB,
@@ -68,6 +67,7 @@ export class QuestionService {
         optionD: question.optionD,
         correctAnswer: question.correctAnswer,
         description: question.description,
+        previousYearInfo: question.previousYearInfo,
         subChapterId: question.subChapter.id,
         createdAt: question.createdAt,
         updatedAt: question.updatedAt
@@ -97,7 +97,6 @@ export class QuestionService {
     // Transform question to ensure it has subChapterId property
     return {
       id: question.id,
-      name: question.name,
       questionText: question.questionText,
       optionA: question.optionA,
       optionB: question.optionB,
@@ -105,6 +104,7 @@ export class QuestionService {
       optionD: question.optionD,
       correctAnswer: question.correctAnswer,
       description: question.description,
+      previousYearInfo: question.previousYearInfo,
       subChapterId: question.subChapter.id,
       createdAt: question.createdAt,
       updatedAt: question.updatedAt
@@ -119,5 +119,52 @@ export class QuestionService {
 
     await this.em.removeAndFlush(question);
     return true;
+  }
+
+  async findByIds(ids: number[]): Promise<Question[]> {
+    return this.em.find(Question, { id: { $in: ids } });
+  }
+
+  // New method to filter questions by course, group, subject, chapter, and subchapter
+  async findFilteredQuestions(
+    courseId?: number,
+    groupId?: number,
+    subjectId?: number,
+    chapterId?: number,
+    subChapterId?: number
+  ): Promise<any[]> {
+    // First, get all questions with their subchapters
+    const questions = await this.em.find(Question, {}, { 
+      populate: ['subChapter.course', 'subChapter.group', 'subChapter.subject', 'subChapter.chapter'] 
+    });
+    
+    // Filter questions in memory based on the provided criteria
+    const filteredQuestions = questions.filter(question => {
+      // If no filter is specified for a level, it passes automatically
+      // If a filter is specified, it must match
+      const courseMatch = !courseId || question.subChapter.course.id === courseId;
+      const groupMatch = !groupId || question.subChapter.group.id === groupId;
+      const subjectMatch = !subjectId || question.subChapter.subject.id === subjectId;
+      const chapterMatch = !chapterId || question.subChapter.chapter.id === chapterId;
+      const subChapterMatch = !subChapterId || question.subChapter.id === subChapterId;
+      
+      return courseMatch && groupMatch && subjectMatch && chapterMatch && subChapterMatch;
+    });
+    
+    // Transform questions to ensure they have the right structure
+    return filteredQuestions.map(question => ({
+      id: question.id,
+      questionText: question.questionText,
+      optionA: question.optionA,
+      optionB: question.optionB,
+      optionC: question.optionC,
+      optionD: question.optionD,
+      correctAnswer: question.correctAnswer,
+      description: question.description,
+      previousYearInfo: question.previousYearInfo,
+      subChapterId: question.subChapter.id,
+      createdAt: question.createdAt,
+      updatedAt: question.updatedAt
+    }));
   }
 }

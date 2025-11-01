@@ -14,13 +14,15 @@ import { Chapter } from '../question/entity/chapter.entity';
 import { SubChapter } from '../question/entity/subchapter.entity';
 import { Question } from '../question/entity/question.entity';
 import { Subject } from '../question/entity/subject.entity';
+import { Exam } from '../exam/entity/exam.entity';
+import { ExamResult } from '../exam/entity/exam-result.entity';
 
 dotenv.config();
 
 export default defineConfig({
   driver: PostgreSqlDriver,
   clientUrl: process.env.DATABASE_URL,
-  entities: [User, Setting, OtpCode, Notice, NoticeRead, SystemSetting, Course, Book, ExamCourse, Group, Subject, Chapter, SubChapter, Question],
+  entities: [User, Setting, OtpCode, Notice, NoticeRead, SystemSetting, Course, Book, ExamCourse, Group, Subject, Chapter, SubChapter, Question, Exam, ExamResult],
   debug: false,
   allowGlobalContext: true,
   pool: {

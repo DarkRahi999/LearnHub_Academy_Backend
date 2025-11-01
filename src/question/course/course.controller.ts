@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, Param, ParseIntPipe, Put, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
 import { CourseService } from './course.service';
-import { CourseRes, CreateCourseDto, UpdateCourseDto } from '../dto/course.dto';
+import { CourseRes, CreateQuestionCourseDto, UpdateQuestionCourseDto } from '../dto/course.dto';
 import { ExamCourse } from '../entity/course.entity';
 
 @ApiTags('ExamCourses')
@@ -14,7 +14,7 @@ export class CourseController {
   @ApiOperation({ summary: 'Create a new course' })
   @ApiResponse({ status: 201, description: 'Course successfully created.', type: CourseRes })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  async create(@Body() createCourseDto: CreateCourseDto): Promise<ExamCourse> {
+  async create(@Body() createCourseDto: CreateQuestionCourseDto): Promise<ExamCourse> {
     return await this.courseService.create(createCourseDto);
   }
 
@@ -43,7 +43,7 @@ export class CourseController {
   @ApiResponse({ status: 404, description: 'Course not found.' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateCourseDto: UpdateCourseDto,
+    @Body() updateCourseDto: UpdateQuestionCourseDto,
   ): Promise<ExamCourse> {
     const course = await this.courseService.update(id, updateCourseDto);
     if (!course) {

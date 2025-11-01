@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
 
-export class CreateCourseDto {
+export class CreateQuestionCourseDto {
   @ApiProperty({ example: 'Mathematics', description: 'The name of the course' })
   @IsString()
   name: string;
@@ -12,7 +12,7 @@ export class CreateCourseDto {
   description?: string;
 }
 
-export class UpdateCourseDto {
+export class UpdateQuestionCourseDto {
   @ApiPropertyOptional({ example: 'Advanced Mathematics', description: 'The name of the course' })
   @IsString()
   @IsOptional()

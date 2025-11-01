@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { CreateCourseDto, UpdateCourseDto } from '../dto/course.dto';
+import { CreateQuestionCourseDto, UpdateQuestionCourseDto } from '../dto/course.dto';
 import { ExamCourse } from '../entity/course.entity';
 
 @Injectable()
 export class CourseService {
   constructor(private readonly em: EntityManager) {}
 
-  async create(createCourseDto: CreateCourseDto): Promise<ExamCourse> {
+  async create(createCourseDto: CreateQuestionCourseDto): Promise<ExamCourse> {
     const course = this.em.create(ExamCourse, {
       name: createCourseDto.name,
       description: createCourseDto.description,
@@ -27,7 +27,7 @@ export class CourseService {
     return await this.em.findOne(ExamCourse, { id });
   }
 
-  async update(id: number, updateCourseDto: UpdateCourseDto): Promise<ExamCourse | null> {
+  async update(id: number, updateCourseDto: UpdateQuestionCourseDto): Promise<ExamCourse | null> {
     const course = await this.em.findOne(ExamCourse, { id });
     if (!course) {
       return null;

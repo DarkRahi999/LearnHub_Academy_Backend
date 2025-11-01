@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Put, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, ParseIntPipe, Put, Delete, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
 import { QuestionService } from './question.service';
 import { CreateQuestionDto, UpdateQuestionDto } from '../dto/question.dto';
@@ -21,7 +21,32 @@ export class QuestionController {
   @Get()
   @ApiOperation({ summary: 'Get all questions' })
   @ApiResponse({ status: 200, description: 'Return all questions.' })
-  async findAll(): Promise<Question[]> {
+  async findAll(
+    @Query('courseId') courseId?: string,
+    @Query('groupId') groupId?: string,
+    @Query('subjectId') subjectId?: string,
+    @Query('chapterId') chapterId?: string,
+    @Query('subChapterId') subChapterId?: string
+  ): Promise<any[]> {
+    // Convert string parameters to numbers
+    const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
+    const groupIdNum = groupId ? parseInt(groupId, 10) : undefined;
+    const subjectIdNum = subjectId ? parseInt(subjectId, 10) : undefined;
+    const chapterIdNum = chapterId ? parseInt(chapterId, 10) : undefined;
+    const subChapterIdNum = subChapterId ? parseInt(subChapterId, 10) : undefined;
+
+    // If any filter is provided, use filtered search
+    if (courseIdNum || groupIdNum || subjectIdNum || chapterIdNum || subChapterIdNum) {
+      return await this.questionService.findFilteredQuestions(
+        courseIdNum,
+        groupIdNum,
+        subjectIdNum,
+        chapterIdNum,
+        subChapterIdNum
+      );
+    }
+    
+    // Otherwise return all questions
     return await this.questionService.findAll();
   }
 
@@ -29,7 +54,7 @@ export class QuestionController {
   @ApiOperation({ summary: 'Get a question by ID' })
   @ApiResponse({ status: 200, description: 'Return the question.' })
   @ApiResponse({ status: 404, description: 'Question not found.' })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Question> {
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<any> {
     const question = await this.questionService.findOne(id);
     if (!question) {
       throw new Error('Question not found');
@@ -44,7 +69,7 @@ export class QuestionController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateQuestionDto: UpdateQuestionDto,
-  ): Promise<Question> {
+  ): Promise<any> {
     const question = await this.questionService.update(id, updateQuestionDto);
     if (!question) {
       throw new Error('Question not found');

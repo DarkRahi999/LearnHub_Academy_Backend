@@ -4,9 +4,6 @@ import { SubChapter } from './subchapter.entity';
 
 @Entity({ tableName: 'question' })
 export class Question extends Table {
-  @Property({ length: 128 })
-  name: string;
-
   @ManyToOne(() => SubChapter)
   subChapter: SubChapter;
 
@@ -30,4 +27,7 @@ export class Question extends Table {
 
   @Property({ type: 'text', nullable: true })
   description?: string;
+  
+  @Property({ type: 'text', nullable: true })
+  previousYearInfo?: string; // Stores information about when this question previously appeared (year, board, etc.)
 }
