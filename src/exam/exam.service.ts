@@ -173,20 +173,22 @@ export class ExamService {
       }
     }
     
-    // Validate that all questions in answers belong to this exam
-    const examQuestionIds = exam.questions.getItems().map(q => q.id);
-    const invalidAnswers = answers.filter(a => !examQuestionIds.includes(a.questionId));
+    // Create a map of submitted answers for easier lookup
+    const answerMap = new Map(answers.map(a => [a.questionId, a.answer]));
     
-    if (invalidAnswers.length > 0) {
-      throw new BadRequestException('Some answers do not belong to this exam');
-    }
-    
-    // Grade the answers
-    const correctAnswers = exam.questions.getItems().filter(q => 
-      answers.some(a => a.questionId === q.id && a.answer === q.correctAnswer)
-    ).length;
-    
+    // Grade the answers - check all questions in the exam, not just submitted answers
+    let correctAnswers = 0;
     const totalQuestions = exam.questions.getItems().length;
+    
+    // For each question in the exam, check if the user's answer is correct
+    exam.questions.getItems().forEach(question => {
+      const userAnswer = answerMap.get(question.id);
+      // If user didn't answer, it's considered incorrect
+      if (userAnswer && userAnswer === question.correctAnswer) {
+        correctAnswers++;
+      }
+    });
+    
     const percentage = Math.round((correctAnswers / totalQuestions) * 100);
     
     // Store the results (only for real exams, not practice)
@@ -199,12 +201,12 @@ export class ExamService {
       result.correctAnswers = correctAnswers;
       result.percentage = percentage;
       result.passed = percentage >= 50;
-      result.answers = answers.map(a => {
-        const question = exam.questions.getItems().find(q => q.id === a.questionId);
+      result.answers = exam.questions.getItems().map(question => {
+        const userAnswer = answerMap.get(question.id) || "";
         return {
-          questionId: a.questionId,
-          userAnswer: a.answer,
-          correctAnswer: question?.correctAnswer || ''
+          questionId: question.id,
+          userAnswer: userAnswer,
+          correctAnswer: question.correctAnswer
         };
       });
       result.isPractice = false;
@@ -220,7 +222,14 @@ export class ExamService {
       totalQuestions,
       percentage,
       passed: percentage >= 50,
-      answers,
+      answers: exam.questions.getItems().map(question => {
+        const userAnswer = answerMap.get(question.id) || "";
+        return {
+          questionId: question.id,
+          userAnswer: userAnswer,
+          correctAnswer: question.correctAnswer
+        };
+      }),
       isPractice
     };
   }
