@@ -50,48 +50,68 @@ export class ExamController {
     return this.examService.findAll();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get exam by ID' })
-  @ApiResponse({ status: 200, description: 'Exam retrieved successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
-  @ApiResponse({ status: 404, description: 'Exam not found' })
-  async findOne(
-    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
-  ) {
-    return this.examService.findOne(id);
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.CREATE_EXAM)
+  @Get('admin/report')
+  @ApiOperation({ summary: 'Get admin report (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Admin report retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getAdminReport(@Req() req) {
+    return this.examService.getAdminReport();
+  }
+  
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.CREATE_EXAM)
+  @Get('participation')
+  @ApiOperation({ summary: 'Get exam participation data (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Exam participation data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getExamParticipation() {
+    return this.examService.getExamParticipationData();
+  }
+  
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.CREATE_EXAM)
+  @Get('statistics')
+  @ApiOperation({ summary: 'Get exam statistics (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Exam statistics retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getExamStatistics() {
+    return this.examService.getAllExamStatistics();
   }
 
-  @Put(':id')
-  @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RoleGuard)
-  @RequirePermissions(Permission.UPDATE_EXAM)
-  @ApiOperation({ summary: 'Update an exam (Admin/Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'Exam updated successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid input data or ID' })
+  @RequirePermissions(Permission.CREATE_EXAM)
+  @Get(':id/statistics')
+  @ApiOperation({ summary: 'Get specific exam statistics (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Exam statistics retrieved successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
   @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Exam not found' })
-  async update(
+  async getSpecificExamStatistics(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
-    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }), QuestionCountValidationPipe) updateExamDto: UpdateExamDto,
   ) {
-    return this.examService.update(id, updateExamDto);
+    return this.examService.getExamStatistics(id);
   }
 
-  @Delete(':id')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @RequirePermissions(Permission.DELETE_EXAM)
-  @ApiOperation({ summary: 'Delete an exam (Admin/Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'Exam deleted successfully' })
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/check-attempt')
+  @ApiOperation({ summary: 'Check if user has already attempted this exam' })
+  @ApiResponse({ status: 200, description: 'Exam attempt check completed' })
   @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
   @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Exam not found' })
-  async remove(
+  async checkExamAttempt(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+    @Req() req,
   ) {
-    return this.examService.remove(id);
+    const userId = req.user.userId;
+    const hasAttempted = await this.examService.checkUserExamAttempt(id, userId);
+    return { hasAttempted };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -146,6 +166,50 @@ export class ExamController {
     return this.examService.submitExam(id, userId, answers, true);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get exam by ID' })
+  @ApiResponse({ status: 200, description: 'Exam retrieved successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
+  @ApiResponse({ status: 404, description: 'Exam not found' })
+  async findOne(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+  ) {
+    return this.examService.findOne(id);
+  }
+
+  @Put(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.UPDATE_EXAM)
+  @ApiOperation({ summary: 'Update an exam (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Exam updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid input data or ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Exam not found' })
+  async update(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }), QuestionCountValidationPipe) updateExamDto: UpdateExamDto,
+  ) {
+    return this.examService.update(id, updateExamDto);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @RequirePermissions(Permission.DELETE_EXAM)
+  @ApiOperation({ summary: 'Delete an exam (Admin/Super Admin only)' })
+  @ApiResponse({ status: 200, description: 'Exam deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Exam not found' })
+  async remove(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+  ) {
+    return this.examService.remove(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('user/results')
   @ApiOperation({ summary: 'Get authenticated user\'s exam results' })
@@ -164,58 +228,5 @@ export class ExamController {
   async getUserHistory(@Req() req) {
     const userId = req.user.userId;
     return this.examService.getUserExamHistory(userId);
-  }
-
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @RequirePermissions(Permission.CREATE_EXAM)
-  @Get('admin/report')
-  @ApiOperation({ summary: 'Get admin report (Admin/Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'Admin report retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  async getAdminReport(@Req() req) {
-    return this.examService.getAdminReport();
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get(':id/check-attempt')
-  @ApiOperation({ summary: 'Check if user has already attempted this exam' })
-  @ApiResponse({ status: 200, description: 'Exam attempt check completed' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
-  @ApiResponse({ status: 404, description: 'Exam not found' })
-  async checkExamAttempt(
-    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
-    @Req() req,
-  ) {
-    const userId = req.user.userId;
-    const hasAttempted = await this.examService.checkUserExamAttempt(id, userId);
-    return { hasAttempted };
-  }
-
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @RequirePermissions(Permission.CREATE_EXAM)
-  @Get('statistics')
-  @ApiOperation({ summary: 'Get exam statistics (Admin/Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'Exam statistics retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  async getExamStatistics() {
-    return this.examService.getAllExamStatistics();
-  }
-
-  @UseGuards(JwtAuthGuard, RoleGuard)
-  @RequirePermissions(Permission.CREATE_EXAM)
-  @Get(':id/statistics')
-  @ApiOperation({ summary: 'Get specific exam statistics (Admin/Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'Exam statistics retrieved successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid ID' })
-  @ApiResponse({ status: 401, description: 'Unauthorized - Please login' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Exam not found' })
-  async getSpecificExamStatistics(
-    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
-  ) {
-    return this.examService.getExamStatistics(id);
   }
 }

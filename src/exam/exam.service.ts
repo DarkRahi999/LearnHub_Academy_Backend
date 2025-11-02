@@ -319,6 +319,7 @@ export class ExamService {
       totalUsers,
       recentResults: recentResults.map(result => ({
         id: result.id,
+        user: result.user.id,  // Add user ID
         userName: `${result.user.firstName} ${result.user.lastName}`,
         examName: result.exam.name,
         score: result.score,
@@ -338,5 +339,41 @@ export class ExamService {
     });
     
     return !!existingResult;
+  }
+  
+  async getExamParticipationData(): Promise<any> {
+    // Get all exam results with user and exam data
+    const allResults = await this.em.find(ExamResult, { isPractice: false }, {
+      populate: ['user', 'exam'],
+      orderBy: { submittedAt: 'DESC' }
+    });
+    
+    // Group results by exam
+    const examParticipation: any = {};
+    
+    for (const result of allResults) {
+      const examId = result.exam.id;
+      
+      if (!examParticipation[examId]) {
+        examParticipation[examId] = {
+          examId: examId,
+          examName: result.exam.name,
+          totalParticipants: 0,
+          participants: []
+        };
+      }
+      
+      examParticipation[examId].totalParticipants += 1;
+      examParticipation[examId].participants.push({
+        userId: result.user.id,
+        userName: `${result.user.firstName} ${result.user.lastName}`,
+        score: result.score,
+        percentage: result.percentage,
+        passed: result.percentage >= 50,
+        submittedAt: result.submittedAt
+      });
+    }
+    
+    return Object.values(examParticipation);
   }
 }
